@@ -9,12 +9,14 @@ import {
   CancelBookingArgsSchema,
   LookupBookingsArgsSchema,
   TakeMessageArgsSchema,
+  GetCallerMemoryArgsSchema,
   type FunctionName,
 } from "../lib/validation";
 import { logger } from "../lib/logger";
 import { AppError, BusinessNotFoundError, IntegrationError, LookupRequiredError } from "../lib/errors";
 import * as bookingService from "../services/booking";
 import * as crmService from "../services/crm";
+import * as memoryService from "../services/memory";
 import type { ResolvedBusinessConfig } from "../types";
 import type { RequestContext } from "../lib/requestContext";
 
@@ -126,6 +128,20 @@ async function handleCreateBooking(
       ctx
     );
 
+    // Update memory — never block the call
+    try {
+      await memoryService.updateMemoryAfterCall(
+        ctx.businessId, parsed.callerPhone,
+        { lastCallId: ctx.callId, recentAppointmentStatus: "booked", callerName: parsed.callerName },
+        ctx
+      );
+    } catch (e) {
+      logger.error("Memory update failed after booking", {
+        call_id: ctx.callId, business_id: ctx.businessId, action: "create_booking_memory",
+        status: "error", error: e instanceof Error ? e.message : String(e),
+      });
+    }
+
     return {
       result: "success",
       bookingUid: result.bookingUid,
@@ -171,6 +187,20 @@ async function handleCancelBooking(
     parsed.callerPhone,
     ctx
   );
+
+  // Update memory — never block the call
+  try {
+    await memoryService.updateMemoryAfterCall(
+      ctx.businessId, parsed.callerPhone,
+      { lastCallId: ctx.callId, recentAppointmentStatus: "cancelled" },
+      ctx
+    );
+  } catch (e) {
+    logger.error("Memory update failed after cancel", {
+      call_id: ctx.callId, business_id: ctx.businessId, action: "cancel_booking_memory",
+      status: "error", error: e instanceof Error ? e.message : String(e),
+    });
+  }
 
   return {
     result: "success",
@@ -256,6 +286,24 @@ async function handleTakeMessage(
       ctx
     );
 
+    // Update memory — never block the call
+    try {
+      await memoryService.updateMemoryAfterCall(
+        ctx.businessId, parsed.callerPhone,
+        {
+          lastCallId: ctx.callId,
+          callerName: parsed.callerName,
+          recentMessageSummary: `[${typeLabels[messageType]}] ${parsed.messageText.slice(0, 200)}`,
+        },
+        ctx
+      );
+    } catch (e) {
+      logger.error("Memory update failed after take_message", {
+        call_id: ctx.callId, business_id: ctx.businessId, action: "take_message_memory",
+        status: "error", error: e instanceof Error ? e.message : String(e),
+      });
+    }
+
     // Type-specific responses
     const userMessages: Record<string, string> = {
       message: "Mesajınızı aldım efendim, en kısa sürede size dönüş yapılacaktır.",
@@ -290,11 +338,55 @@ async function handleTakeMessage(
 }
 
 async function handleGetCallerMemory(
-  _args: Record<string, unknown>,
+  args: Record<string, unknown>,
   _config: ResolvedBusinessConfig,
-  _ctx: RequestContext
+  ctx: RequestContext
 ): Promise<HandlerResult> {
-  return { result: "not_implemented", message: "get_caller_memory not implemented yet" };
+  const parsed = GetCallerMemoryArgsSchema.parse(args);
+  const phone = parsed.callerPhone || ctx.callerPhone;
+
+  if (!phone || phone === "unknown") {
+    return {
+      result: "no_memory",
+      user_message: "Arayan bilgisi bulunamadı.",
+    };
+  }
+
+  try {
+    const memory = await memoryService.getCallerMemoryForBusiness(
+      ctx.businessId, phone, ctx
+    );
+
+    if (!memory) {
+      return {
+        result: "no_memory",
+        callerName: null,
+        lastCallAt: null,
+        recentAppointmentStatus: null,
+        recentMessageSummary: null,
+      };
+    }
+
+    return {
+      result: "success",
+      callerName: memory.callerName,
+      lastCallAt: memory.lastCallAt?.toISOString() || null,
+      recentAppointmentStatus: memory.recentAppointmentStatus,
+      recentMessageSummary: memory.recentMessageSummary,
+    };
+  } catch (error) {
+    logger.error("Memory read failed", {
+      call_id: ctx.callId, business_id: ctx.businessId, action: "get_caller_memory",
+      status: "error", error: error instanceof Error ? error.message : String(error),
+    });
+    return {
+      result: "no_memory",
+      callerName: null,
+      lastCallAt: null,
+      recentAppointmentStatus: null,
+      recentMessageSummary: null,
+    };
+  }
 }
 
 async function handleGetBusinessHours(
