@@ -150,7 +150,7 @@ npm run seed         # Run onboarding seed script
 
 ## Environment Variables
 RETELL_API_KEY, CALCOM_API_KEY, TWENTY_API_KEY, ANTHROPIC_API_KEY,
-DATABASE_URL, WEBHOOK_SECRET, PORT, NODE_ENV, LOG_LEVEL
+DATABASE_URL, PORT, NODE_ENV, LOG_LEVEL
 
 ## Detailed References
 - docs/project-instruction.md — full V1 spec (source of truth)
@@ -169,4 +169,4 @@ list of modified files, test commands, active build priority step,
 any unresolved decisions or blockers from this session.
 
 ## Current Phase
-Step 10: Opus post-call processing
+Step 13: Onboarding seed + config validation

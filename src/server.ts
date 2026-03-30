@@ -4,6 +4,7 @@ import { prisma, disconnectPrisma } from "./lib/prisma";
 import { logger } from "./lib/logger";
 import retellRouter from "./routes/retell";
 import webhookRouter from "./routes/webhook";
+import { validateAllBusinesses } from "./config/validator";
 
 const app = express();
 const PORT = parseInt(process.env.PORT || "3000", 10);
@@ -28,11 +29,22 @@ app.get("/health", async (_req, res) => {
 app.use("/retell", retellRouter);
 app.use("/webhook", webhookRouter);
 
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, async () => {
   logger.info(`Server started on port ${PORT}`, {
     action: "server_start",
     status: "ok",
   });
+
+  // Run config validation on startup (non-blocking)
+  try {
+    await validateAllBusinesses();
+  } catch (error) {
+    logger.error("Config validation failed on startup", {
+      action: "config_validation",
+      status: "error",
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 });
 
 // Graceful shutdown — drain in-flight requests

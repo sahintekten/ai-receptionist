@@ -55,7 +55,6 @@
 - Twenty API key (per workspace, stored in integration_configs)
 - Anthropic API key (global)
 - Database connection string (Railway)
-- Webhook shared secret (for Retell auth)
 
 ## Environment Variables
 ```
@@ -64,7 +63,6 @@ CALCOM_API_KEY        # Cal.com API key
 TWENTY_API_KEY        # Twenty CRM API key (local dev; production uses integration_configs)
 ANTHROPIC_API_KEY     # Anthropic API key for Opus
 DATABASE_URL          # PostgreSQL connection string (Railway provides)
-WEBHOOK_SECRET        # Shared secret for Retell webhook auth
 PORT                  # Server port (Railway sets automatically)
 NODE_ENV              # production | development
 LOG_LEVEL             # info | debug | warn | error

@@ -1,0 +1,65 @@
+{
+  "business": {
+    "name": "Tekten Klinik",
+    "language": "tr",
+    "timezone": "Europe/Istanbul",
+    "phoneNumber": "+908508224444",
+    "retellAgentId": "agent_9d7537bb6f6966aee6af1a73ce",
+    "kbReference": "knowledge_base_6e573cce7789f481",
+    "greetingText": "Tekten Klinik, hoş geldiniz. Size nasıl yardımcı olabilirim?",
+    "closingText": "Tekten Klinik'i aradığınız için teşekkür ederiz, iyi günler dileriz.",
+    "fillerSpeech": "Bir saniye bakıyorum efendim...",
+    "fallbackMessage": "Şu an yardımcı olamıyorum efendim, mesajınızı alayım size dönüş yapalım.",
+    "degradationMode": "message",
+    "languageMismatchAction": "message_take",
+    "operatingHours": {
+      "monday": [{ "open": "09:00", "close": "18:30" }],
+      "tuesday": [{ "open": "09:00", "close": "18:30" }],
+      "wednesday": [{ "open": "09:00", "close": "18:30" }],
+      "thursday": [{ "open": "09:00", "close": "18:30" }],
+      "friday": [{ "open": "09:00", "close": "18:30" }],
+      "saturday": [{ "open": "09:00", "close": "18:30" }],
+      "sunday": []
+    },
+    "urgentEscalationConfig": {
+      "situations": [
+        "Ameliyat sonrası ciddi komplikasyon belirtileri",
+        "Balon sonrası şiddetli semptomlar",
+        "Ciddi alerjik reaksiyon"
+      ],
+      "notify_contact": "+905558224444",
+      "response_time_promise": "30 dakika",
+      "escalation_message": "Durumunuzu acil olarak ilgili doktorumuza ilettim efendim, en kısa sürede size dönüş yapılacaktır."
+    },
+    "enabledIntents": [
+      "appointment_booking",
+      "appointment_cancellation",
+      "appointment_rescheduling",
+      "general_inquiry",
+      "message_taking",
+      "urgent_escalation",
+      "followup_scheduling"
+    ]
+  },
+  "integrations": {
+    "calcom": {
+      "event_types": [
+        { "id": 5194133, "name": "Obezite Ön Görüşme", "duration_minutes": 30, "service_type": "obezite" },
+        { "id": 5194142, "name": "Estetik Ön Görüşme", "duration_minutes": 30, "service_type": "estetik" }
+      ],
+      "availability_mode": "cal_only"
+    },
+    "twenty": {
+      "api_key": "FROM_ENV"
+    },
+    "retell": {
+      "agent_id": "agent_9d7537bb6f6966aee6af1a73ce",
+      "webhook_url": "https://your-railway-url.up.railway.app/retell/"
+    },
+    "anthropic": {
+      "model_id": "claude-sonnet-4-20250514",
+      "max_tokens": 1024,
+      "temperature": 0.3
+    }
+  }
+}

@@ -129,3 +129,7 @@ Key V1 decisions and rationale (53 decisions across 6 review rounds):
   - Safety net: Backend function handlers validate callerPhone before mutation operations
 - If caller refuses to provide phone: message taking only, agent explains booking requires phone
 - CRM contact NOT created for anonymous callers (no phone = no dedup key)
+
+## Env Cleanup (Pre-Step 11)
+- WEBHOOK_SECRET kaldırıldı — Retell SDK Retell.verify(body, apiKey, signature) yeterli, ayrı shared secret gereksiz
+- GHL_API_KEY kaldırıldı — Twenty CRM kullanılıyor, API key integration_configs'da per-business saklanıyor
