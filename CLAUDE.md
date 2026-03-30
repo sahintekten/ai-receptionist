@@ -169,4 +169,4 @@ list of modified files, test commands, active build priority step,
 any unresolved decisions or blockers from this session.
 
 ## Current Phase
-Step 9: Error handling + graceful degradation
+Step 10: Opus post-call processing

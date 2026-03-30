@@ -7,7 +7,8 @@ import { logger } from "../lib/logger";
 import * as callLogService from "../services/callLog";
 import * as memoryService from "../services/memory";
 import * as crmService from "../services/crm";
-import type { Disposition, LastStep } from "@prisma/client";
+import * as opusService from "../services/opus";
+import type { Disposition } from "@prisma/client";
 
 const router = Router();
 
@@ -156,13 +157,28 @@ router.post("/call-completed", verifyWebhookSignature, async (req, res) => {
       }
     }
 
-    // ─── Step 4: Opus async (placeholder — Step 10) ──────
-    logger.info("Opus processing skipped (not yet implemented)", {
-      ...logCtx(ctx),
-      action: "post_call_opus",
-      status: "skipped",
+    // ─── Step 4: Opus async — fire and forget ─────────────
+    void opusService.processPostCall(
+      businessId,
+      config,
+      callId,
+      call.transcript,
+      {
+        callerPhone,
+        disposition: mapDisposition(call.disconnection_reason),
+        bookingId: undefined,
+        durationSeconds: durationSec,
+        crmNoteId,
+      },
+      ctx
+    ).catch((error) => {
+      logger.error("Opus async processing error (uncaught)", {
+        ...logCtx(ctx),
+        action: "post_call_opus_async",
+        status: "error",
+        error: error instanceof Error ? error.message : String(error),
+      });
     });
-    // post_processing_status stays 'pending' by default — will be set to 'completed' by Opus in Step 10
 
     const durationMs = Date.now() - startTime;
     logger.info("Post-call pipeline completed", {
