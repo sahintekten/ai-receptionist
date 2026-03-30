@@ -122,7 +122,7 @@ Key V1 decisions and rationale (53 decisions across 6 review rounds):
 - Original GHL spec archived in docs/archive/ghl-original-spec.md
 
 ## Anonymous Caller Handling
-- V1: inquiry (KB answers) + message taking available without phone number
+- V1: inquiry (KB answers) only without phone number. Message taking also requires phone — clinic cannot call back without a number.
 - Booking, cancel, reschedule require phone — agent asks for phone verbally if caller_id missing
 - Detection: dual-layer guard
   - Primary: Retell Conversation Flow checks {{user_number}} before routing to booking nodes

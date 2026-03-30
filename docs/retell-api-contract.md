@@ -109,3 +109,4 @@ All `user_message` values are in **Turkish** (business language for Tekten Klini
 3. **Raw body for signature** — `JSON.stringify(req.body)` used for verification. If body parsing changes, verification breaks.
 4. **In-memory lookup tracker** — `cancel_booking` safety net uses in-memory Map. Clears after 10K entries. Not persistent across restarts.
 5. **10s timeout** — inherited from integration layer. Retell has its own timeout with filler speech.
+6. **V1: All user_message values are hardcoded in Turkish** (pilot business language). When adding a non-Turkish business, error messages must become language-aware — either from business config or a language-keyed mapping.

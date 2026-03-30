@@ -11,9 +11,9 @@ operating_hours (split-shift, informational only — for answering "what are you
 Empty = closed that day. Times in business timezone. No holiday model V1. Does not affect agent behavior — agent operates 24/7.
 
 ### integration_configs table
-- id, business_id (FK), integration_type (enum: calcom | ghl | retell | anthropic), config_json (jsonb), is_enabled, created_at, updated_at
+- id, business_id (FK), integration_type (enum: calcom | ghl _(deprecated, kept for backward compat)_ | twenty | retell | anthropic), config_json (jsonb), is_enabled, created_at, updated_at
 - calcom config: { event_types: [{ id, name, duration_minutes, service_type }], availability_mode, gcal_calendar_id? }
-- ghl config: { location_id, contact_search_enabled }
+- twenty config: { api_key: "..." }
 - retell config: { agent_id, webhook_url }
 - anthropic config: { model_id, max_tokens, temperature }
 
