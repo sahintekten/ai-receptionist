@@ -17,7 +17,7 @@ Per business config, when a downstream service is unavailable:
 |---|---|---|
 | Cal.com booking (create) | NO | Double booking risk |
 | Cal.com availability (read) | 1 retry | Safe to retry reads |
-| GHL contact/note write | 1 retry | Idempotent with phone dedup |
+| CRM contact/note write (Twenty) | 1 retry | Idempotent with phone dedup |
 | Memory read/write (PostgreSQL) | 1 retry | Transient DB errors |
 | Opus in-call (sync) | NO | Timeout to fallback instead |
 | Opus post-call (async) | 1 retry | Non-blocking, can afford retry |
@@ -64,7 +64,7 @@ When caller hangs up mid-conversation:
 
 ## Post-Call Pipeline Failure Combinations
 
-Each step can fail independently. Accept eventual consistency — no transaction boundary across PostgreSQL + GHL:
+Each step can fail independently. Accept eventual consistency — no transaction boundary across PostgreSQL + CRM:
 
 - If call log write fails: retry 1x, then drop (rare, DB issue). Pipeline stops.
 - If memory write fails after call log succeeds: retry 1x, log inconsistency. Continue to CRM write.

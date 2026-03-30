@@ -29,9 +29,9 @@ Resolution order: agent_id → business metadata → telephony mapping → fallb
 - Backend always queries Cal.com regardless of upstream mode
 
 ## CRM Topology
-- One GHL agency account, one location per business
+- One Twenty workspace per business (workspace-level isolation)
 - Every call writes to CRM (not just booked calls)
-- Contact dedup by phone number within business location
+- Contact dedup by phone number within business workspace (client-side filter)
 - V1: contact + notes only, no pipeline
 
 ## Memory Design

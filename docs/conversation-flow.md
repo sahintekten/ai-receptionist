@@ -68,5 +68,5 @@ Memory is written immediately after call (before Opus). Safe for repeat callers.
 1. Agent: "I'll take a message for you"
 2. Caller leaves message
 3. Agent reads back summary for confirmation
-4. Backend: write to GHL note + call log
+4. Backend: write to CRM note + call log
 5. Agent: closing

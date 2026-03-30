@@ -146,9 +146,10 @@ npm run seed         # Run onboarding seed script
 - Urgent escalation V1: soft promise only, no real-time notification to notify_contact
 - Booking ownership verified by businessId + callerPhone match before cancel/reschedule
 - Twenty CRM replaces GHL for V1 — simpler API, lower cost ($12/seat vs $97/mo), phone search via client-side filter (composite field filters not supported by Twenty REST API)
+- Anonymous callers: inquiry + message-only, booking ops require phone. Dual-layer guard (Retell flow + backend validation).
 
 ## Environment Variables
-RETELL_API_KEY, CALCOM_API_KEY, GHL_API_KEY, ANTHROPIC_API_KEY,
+RETELL_API_KEY, CALCOM_API_KEY, TWENTY_API_KEY, ANTHROPIC_API_KEY,
 DATABASE_URL, WEBHOOK_SECRET, PORT, NODE_ENV, LOG_LEVEL
 
 ## Detailed References

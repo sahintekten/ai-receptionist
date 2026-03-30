@@ -28,7 +28,7 @@ Use this as the default architecture unless I explicitly change it:
 - PostgreSQL as the main source of truth for system state and configuration
 - Prisma as the ORM and migration tool
 - Cal.com for scheduling
-- GoHighLevel for CRM
+- Twenty CRM (replaces GHL for V1)
 - Railway for backend hosting (single service, auto-deploy on push to main)
 - Vitest for testing
 - Opus as a selective reasoning layer
@@ -122,11 +122,11 @@ All times are in the business's configured timezone.
 Holidays are not modeled in V1. If a business is closed on a holiday, Cal.com availability will reflect no open slots and the agent will handle it naturally.
 
 Table: integration_configs (per-integration settings)
-- id, business_id (FK), integration_type (enum: calcom | ghl | retell | anthropic), config_json (jsonb), is_enabled, created_at, updated_at
+- id, business_id (FK), integration_type (enum: calcom | ghl | twenty | retell | anthropic), config_json (jsonb), is_enabled, created_at, updated_at
 
 integration_type + config_json examples:
 - calcom: { event_types: [{ id, name, duration_minutes, service_type }], availability_mode: "cal_only" | "cal_plus_gcal", gcal_calendar_id? }
-- ghl: { location_id, contact_search_enabled: true }
+- twenty: { api_key: "..." }
 - retell: { agent_id, webhook_url }
 - anthropic: { model_id, max_tokens, temperature }
 
@@ -243,7 +243,7 @@ For V1, no SMS or email confirmation is sent after booking.
 The AI receptionist gives verbal confirmation on the call (date, time, provider).
 
 Possible V2 path:
-- Cal.com built-in confirmations or GHL workflow-triggered SMS/email
+- Cal.com built-in confirmations or CRM workflow-triggered SMS/email
 
 ## Telephony strategy
 Do not hardcode one final phone-number type yet.
@@ -257,15 +257,16 @@ Each business must have:
 Number standards such as 0850 vs 0510/0516 can be finalized later without redesigning the backend.
 
 ## CRM strategy
-Use one GoHighLevel agency account.
-Use one separate location per business.
+> GHL replaced by Twenty CRM for V1. Original GHL spec: docs/archive/ghl-original-spec.md
+
+Use one Twenty workspace per business (workspace-level isolation).
+API key per workspace stored in integration_configs.
 
 Every call should create or update CRM state.
 Do not limit CRM writes only to booked calls.
 
 For V1:
-- use direct API writes from the backend
-- optionally add GHL workflow triggers later if needed
+- use direct API writes from the backend (Twenty REST API)
 - no pipeline/opportunity tracking in V1 (contact + notes only)
 - pipeline tracking is a V2 path if needed
 
@@ -279,19 +280,19 @@ For each call, the system should be able to write:
 - message left if any
 - relevant notes
 
-All CRM writes must always go to the correct business location.
+All CRM writes must always go to the correct business workspace.
 
-## GHL contact deduplication
+## CRM contact deduplication
 Use phone number as the primary match key.
 
 For every call:
-1. search for existing contact by phone number in the business location
-2. if found, update the existing contact with new call data
-3. if not found, create a new contact
+1. search for existing person by phone number in the business workspace (client-side filter — Twenty REST API doesn't support composite field filtering)
+2. if found, update the existing person with new call data
+3. if not found, create a new person
 
-Do not create duplicate contacts for the same phone number within a business location.
+Do not create duplicate contacts for the same phone number within a business workspace.
 
-## GHL CRM note deduplication
+## CRM note deduplication
 Store `crm_note_id` in call_logs after the first successful CRM note write.
 Before writing or retrying a CRM note, check if `crm_note_id` is already populated for this call_id.
 If yes, update the existing note instead of creating a new one.
@@ -358,7 +359,7 @@ Pipeline steps (async, non-blocking):
 2. resolve business from agent_id
 3. write initial call log (disposition, last_step, duration, caller_phone, raw metadata)
 4. write/update caller memory immediately (caller_name, last_call_at, recent_appointment_status, recent_message_summary)
-5. write/update CRM contact + basic call note in GHL (immediate, before Opus)
+5. write/update CRM contact + basic call note in Twenty (immediate, before Opus)
 6. send full transcript + call metadata to Opus async
 7. Opus generates: summary, enriched CRM note, orphaned booking check result
 8. update call log with Opus summary
@@ -467,7 +468,7 @@ Validation should check at minimum:
 - agent mapping
 - phone mapping
 - calendar config
-- GHL config
+- CRM config (Twenty)
 - KB presence / reference
 - required integration settings
 - conflicting or duplicate mappings
@@ -561,7 +562,7 @@ When `take_message(type=callback)` is called, the CRM note includes a CALLBACK_P
 When `take_message(type=urgent)` is called, the CRM note includes an URGENT flag.
 
 V1 does not track whether callbacks were actually completed — that is the business's responsibility.
-The flags exist so the business can filter and act on pending items in GHL.
+The flags exist so the business can filter and act on pending items in the CRM.
 
 ## 24/7 Behavior
 The AI receptionist operates 24/7 with identical behavior at all times. There is no after-hours mode.
@@ -587,7 +588,7 @@ When a backend function call takes too long:
 - log the timeout with call_id, function name, and duration
 
 ## Graceful degradation
-When a downstream service is unavailable (Cal.com down, GHL API error, etc.):
+When a downstream service is unavailable (Cal.com down, CRM API error, etc.):
 - behavior is determined by business config
 - option A: switch to message-taking mode ("I'm unable to book right now, but I can take a message and the clinic will call you back")
 - option B: promise a callback ("We're experiencing a temporary issue. Someone from the clinic will call you back shortly")
@@ -596,7 +597,7 @@ When a downstream service is unavailable (Cal.com down, GHL API error, etc.):
 ## Retry strategy
 Retry behavior depends on the integration:
 - booking operations (Cal.com create): NO retry (risk of double booking)
-- CRM writes (GHL contact/note): 1 retry on failure, then log and continue
+- CRM writes (Twenty contact/note): 1 retry on failure, then log and continue
 - memory reads/writes (PostgreSQL): 1 retry on transient error
 - Opus calls: no retry for in-call (timeout to fallback), 1 retry for post-call async
 
@@ -680,7 +681,7 @@ For V1:
 Keys to manage:
 - Retell API key
 - Cal.com API key
-- GHL API key / OAuth tokens
+- Twenty API key (per workspace)
 - Anthropic API key (for Opus)
 - database connection string
 - webhook shared secret
@@ -688,7 +689,7 @@ Keys to manage:
 Environment variable names:
 - RETELL_API_KEY
 - CALCOM_API_KEY
-- GHL_API_KEY
+- TWENTY_API_KEY
 - ANTHROPIC_API_KEY
 - DATABASE_URL
 - WEBHOOK_SECRET
@@ -755,7 +756,7 @@ Use this mental model:
 - KB provides facts
 - Backend orchestrates and executes custom logic
 - Cal.com handles scheduling
-- GoHighLevel handles CRM
+- Twenty handles CRM
 - PostgreSQL stores system state and configuration
 - Prisma manages schema and migrations
 - Opus reasons only when useful
@@ -776,9 +777,9 @@ PostgreSQL is the primary source of truth for:
 - model routing config if added later
 - usage tracking data
 
-GoHighLevel is the CRM system for:
-- contacts
-- notes
+Twenty is the CRM system for:
+- contacts (people)
+- notes (linked via noteTargets)
 - pipeline/opportunity data if used in V2
 
 Cal.com is the scheduling engine for:
@@ -843,7 +844,7 @@ V1 health check (/health) verifies:
 Returns 200 if healthy, 503 if not.
 
 Possible V2 path:
-- deep health check that also verifies Retell API, Cal.com API, and GHL API reachability
+- deep health check that also verifies Retell API, Cal.com API, and Twenty API reachability
 
 ## Railway cold start
 Railway may sleep inactive services. Retell function calls require fast backend responses.
@@ -896,7 +897,7 @@ At minimum, V1 must have tests for:
 - config validation (invalid config is caught before production calls)
 
 ## Integration test approach
-- mock external APIs (Retell, Cal.com, GHL) in tests
+- mock external APIs (Retell, Cal.com, Twenty) in tests
 - use a test database or Prisma's in-memory approach for database tests
 - do not call real external APIs in automated tests
 
@@ -931,9 +932,9 @@ V1 uses a manual onboarding workflow:
 3. create Retell agent manually (following standard template)
 4. upload business-specific KB to Retell agent
 5. assign phone number to agent in Retell
-6. create GHL location for the business
+6. create Twenty workspace for the business + generate API key
 7. create Cal.com event types for the business (one or more per service)
-8. add business config to the database (agent mapping, phone mapping, calendar config, GHL config)
+8. add business config to the database (agent mapping, phone mapping, calendar config, Twenty API key)
 9. run config validation
 10. perform test call via Retell test feature
 11. test cold-start latency if this is the first business on the instance
@@ -953,7 +954,7 @@ When helping with implementation:
 - isolate third-party API code from domain logic
 - always make business scope explicit
 - assume more businesses will be added later
-- document external API contracts in docs/ as they are implemented (Retell payload schema, GHL endpoints, Cal.com endpoints)
+- document external API contracts in docs/ as they are implemented (Retell payload schema, Twenty endpoints, Cal.com endpoints)
 
 Use explicit business-scoped function signatures.
 
@@ -1014,12 +1015,10 @@ Before writing production code, validate these assumptions against real APIs:
    - Test: booking conflict (409) response format
    - Document in docs/calcom-api-contract.md
 
-3. GHL API spike:
-   - Test: phone-based contact search within a location
-   - Document actual rate limits
-   - Test: note creation and update flow (need note ID for post-Opus update)
-   - Document auth method, token expiry, refresh mechanism, and 401 handling. If using OAuth2, build token refresh into the GHL integration module.
-   - Document in docs/ghl-api-contract.md
+3. Twenty CRM API spike (COMPLETED — see docs/twenty-api-contract.md):
+   - Phone search via client-side filter (composite fields not filterable)
+   - Note creation with bodyV2 (RICH_TEXT markdown), linked to people via noteTargets
+   - Bearer token auth per workspace
 
 # Build priority
 
@@ -1029,7 +1028,7 @@ If building from scratch, use this order:
 3. business resolver
 4. Retell function entrypoint + webhook auth
 5. Cal.com integration
-6. GHL integration
+6. Twenty CRM integration
 7. memory layer
 8. call logs + usage tracking
 9. error handling + graceful degradation

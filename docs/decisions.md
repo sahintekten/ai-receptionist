@@ -38,7 +38,7 @@ Key V1 decisions and rationale (53 decisions across 6 review rounds):
 - Cal.com handles booking conflicts: no backend-level slot locking needed at pilot volume
 - Cal.com 1:N event types per business: businesses can have multiple service types
 
-## CRM (GHL)
+## CRM
 - no pipeline in V1: contact + notes sufficient, pipeline adds complexity without V1 value
 - crm_write_status field in call_logs: tracks CRM write success/failure/skip per call
 
@@ -98,7 +98,7 @@ Key V1 decisions and rationale (53 decisions across 6 review rounds):
 - CRM note dedup via crm_note_id stored in call_logs: prevents duplicate notes from retries
 - Opus memory update guarded by last_call_id match: prevents stale overwrite when rapid successive calls cause out-of-order Opus completion
 - urgent escalation V1: soft promise only ("flagging as priority"), no real-time notification to notify_contact. notify_contact and response_time_promise fields kept in schema for V2.
-- GHL token lifecycle must be documented during spike: auth method, token expiry, refresh mechanism, 401 handling
+- CRM token lifecycle documented during Twenty API spike (Bearer token per workspace, no refresh needed)
 
 ## Pre-Build (Review Round 7)
 - write and test Retell agent system prompt for first pilot business BEFORE building backend: the prompt is the product, the backend is plumbing
@@ -110,5 +110,22 @@ Key V1 decisions and rationale (53 decisions across 6 review rounds):
 - API-driven agent creation: V2'den V1'e çekildi, setup script ile programatik oluşturma
 - Retell tool sayısı 8 (reschedule_booking ayrı tool değil): rescheduling = create_booking + cancel_booking kombinasyonu, backend'de hâlâ 9 fonksiyon
 - Cartesia Cleo voice: ElevenLabs'ın 1/3 fiyatına ($0.015/dk vs $0.04/dk), düşük latency (~40-90ms), Sonic 3 ile Türkçe desteği
-- Cal.com ve GHL API spike'ları ayrı phase yerine backend integration adımında yapılacak: ayrı spike gereksiz tekrar
+- Cal.com ve CRM API spike'ları ayrı phase yerine backend integration adımında yapılacak: ayrı spike gereksiz tekrar
 - Dynamic variables kullanımı: {{current_time_Europe/Istanbul}}, {{user_number}} gibi Retell built-in değişkenler prompt'ta kullanılıyor
+
+## CRM Migration (Step 6)
+- Twenty CRM replaces GHL for V1: lower cost ($12/seat vs $97/mo), simpler API, workspace-level isolation
+- CRM integration module isolated in src/integrations/twenty.ts — GHL swap possible in 1-2 days
+- Phone search via client-side filter: Twenty REST API doesn't support composite field filtering
+- Notes use bodyV2 (RICH_TEXT with markdown input), linked to people via separate noteTargets endpoint
+- crm_note_id (renamed from ghl_note_id) for CRM note dedup
+- Original GHL spec archived in docs/archive/ghl-original-spec.md
+
+## Anonymous Caller Handling
+- V1: inquiry (KB answers) + message taking available without phone number
+- Booking, cancel, reschedule require phone — agent asks for phone verbally if caller_id missing
+- Detection: dual-layer guard
+  - Primary: Retell Conversation Flow checks {{user_number}} before routing to booking nodes
+  - Safety net: Backend function handlers validate callerPhone before mutation operations
+- If caller refuses to provide phone: message taking only, agent explains booking requires phone
+- CRM contact NOT created for anonymous callers (no phone = no dedup key)

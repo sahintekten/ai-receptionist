@@ -349,6 +349,24 @@ router.post("/", verifyWebhookSignature, async (req, res) => {
   const agentId = call.agent_id;
   const callerPhone = call.from_number || "unknown";
 
+  // Phone required for mutation operations — safety net (primary guard is Retell flow)
+  const PHONE_REQUIRED_FUNCTIONS: FunctionName[] = [
+    "create_booking", "cancel_booking", "lookup_bookings", "take_message",
+  ];
+
+  if (PHONE_REQUIRED_FUNCTIONS.includes(name) && (!callerPhone || callerPhone === "unknown")) {
+    logger.warn("Phone required but missing", {
+      call_id: callId,
+      action: name,
+      status: "phone_required",
+    });
+    res.status(200).json({
+      result: "error",
+      user_message: "Randevu işlemleri için telefon numaranıza ihtiyacım var efendim. Numaranızı söyleyebilir misiniz?",
+    });
+    return;
+  }
+
   try {
     // Resolve business from agent_id
     const config = await resolveBusiness(agentId, callId);
