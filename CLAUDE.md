@@ -169,4 +169,4 @@ list of modified files, test commands, active build priority step,
 any unresolved decisions or blockers from this session.
 
 ## Current Phase
-Step 7: Memory layer
+Step 8: Call logs + usage tracking

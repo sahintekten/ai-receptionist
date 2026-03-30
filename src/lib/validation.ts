@@ -86,3 +86,28 @@ export const argsSchemaMap: Record<FunctionName, z.ZodTypeAny> = {
   get_business_hours: GetBusinessHoursArgsSchema,
   get_emergency_info: GetEmergencyInfoArgsSchema,
 };
+
+// ─── Retell call.completed Webhook Schema ────────────────
+
+export const RetellCallCompletedSchema = z.object({
+  event: z.string(),
+  call: z.object({
+    call_id: z.string(),
+    agent_id: z.string(),
+    call_type: z.string().optional(),
+    from_number: z.string().optional(),
+    to_number: z.string().optional(),
+    direction: z.string().optional(),
+    start_timestamp: z.number().optional(),
+    end_timestamp: z.number().optional(),
+    duration_ms: z.number().optional(),
+    transcript: z.string().optional(),
+    transcript_object: z.array(z.record(z.unknown())).optional(),
+    recording_url: z.string().optional(),
+    disconnection_reason: z.string().optional(),
+    call_analysis: z.record(z.unknown()).optional(),
+    metadata: z.record(z.unknown()).optional(),
+  }).passthrough(),
+}).passthrough();
+
+export type RetellCallCompleted = z.infer<typeof RetellCallCompletedSchema>;

@@ -3,6 +3,7 @@ import express from "express";
 import { prisma, disconnectPrisma } from "./lib/prisma";
 import { logger } from "./lib/logger";
 import retellRouter from "./routes/retell";
+import webhookRouter from "./routes/webhook";
 
 const app = express();
 const PORT = parseInt(process.env.PORT || "3000", 10);
@@ -25,6 +26,7 @@ app.get("/health", async (_req, res) => {
 });
 
 app.use("/retell", retellRouter);
+app.use("/webhook", webhookRouter);
 
 const server = app.listen(PORT, () => {
   logger.info(`Server started on port ${PORT}`, {
