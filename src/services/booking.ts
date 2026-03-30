@@ -116,6 +116,10 @@ export async function createBookingForBusiness(
     action: "create_booking",
     status: "processing",
     event_type_id: eventTypeId,
+    slot,
+    attendee_email: attendeeEmail,
+    caller_phone: callerPhone,
+    timezone,
   });
 
   // NO retry — double booking risk

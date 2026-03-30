@@ -140,9 +140,11 @@ async function handleCreateBooking(
   let slot = parsed.slot;
   if (!slot && parsed.date) {
     const time = parsed.time || "09:00";
-    // Build ISO datetime in Europe/Istanbul
-    slot = `${parsed.date}T${time}:00+03:00`;
+    // Build ISO datetime — Cal.com expects the format from availability response
+    // Availability returns: "2026-04-01T14:30:00.000+03:00"
+    slot = `${parsed.date}T${time}:00.000+03:00`;
   }
+
   if (!slot) {
     return {
       result: "error",
@@ -187,6 +189,17 @@ async function handleCreateBooking(
 
   // Normalize Turkish phone: remove spaces, leading 0 → +90
   const normalizedPhone = normalizePhone(phone);
+
+  logger.info("create_booking args resolved", {
+    call_id: ctx.callId,
+    business_id: ctx.businessId,
+    action: "create_booking",
+    status: "args_resolved",
+    slot,
+    event_type_id: eventTypeId,
+    caller_phone: normalizedPhone,
+    caller_name: callerName,
+  });
 
   try {
     const result = await bookingService.createBookingForBusiness(

@@ -180,26 +180,33 @@ export async function createBooking(
   context?: { call_id?: string; business_id?: string }
 ): Promise<CalcomBooking> {
   // NO retry for booking create — double booking risk
+  const requestBody = {
+    eventTypeId,
+    start,
+    attendee: {
+      name: attendeeName,
+      email: attendeeEmail,
+      timeZone,
+    },
+    metadata: {
+      source: "ai-receptionist",
+      phone: attendeePhone,
+    },
+  };
+
+  logger.debug("Cal.com create booking request", {
+    call_id: context?.call_id,
+    business_id: context?.business_id,
+    action: "calcom_create_booking",
+    status: "sending",
+    request_body: JSON.stringify(requestBody),
+  });
+
   const result = await calcomFetch<CalcomBookingResponse>(
     "/bookings",
     {
       method: "POST",
-      body: JSON.stringify({
-        eventTypeId,
-        start,
-        attendee: {
-          name: attendeeName,
-          email: attendeeEmail,
-          timeZone,
-        },
-        location: {
-          type: "phone",
-          value: attendeePhone,
-        },
-        metadata: {
-          source: "ai-receptionist",
-        },
-      }),
+      body: JSON.stringify(requestBody),
     },
     { ...context, action: "calcom_create_booking" }
   );
