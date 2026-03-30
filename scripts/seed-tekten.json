@@ -54,7 +54,7 @@
     },
     "retell": {
       "agent_id": "agent_9d7537bb6f6966aee6af1a73ce",
-      "webhook_url": "https://your-railway-url.up.railway.app/retell/"
+      "webhook_url": "https://ai-receptionist-production-f15e.up.railway.app/retell/"
     },
     "anthropic": {
       "model_id": "claude-sonnet-4-20250514",
