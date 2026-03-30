@@ -169,4 +169,4 @@ list of modified files, test commands, active build priority step,
 any unresolved decisions or blockers from this session.
 
 ## Current Phase
-Step 13: Onboarding seed + config validation
+V1 Complete — ready for Railway deploy

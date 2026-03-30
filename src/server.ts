@@ -15,14 +15,14 @@ app.use(express.json());
 app.get("/health", async (_req, res) => {
   try {
     await prisma.$queryRaw`SELECT 1`;
-    res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
+    res.status(200).json({ status: "ok", db: "connected", timestamp: new Date().toISOString() });
   } catch (error) {
     logger.error("Health check failed", {
       action: "health_check",
       status: "error",
       error: error instanceof Error ? error.message : String(error),
     });
-    res.status(503).json({ status: "error", message: "Database connection failed" });
+    res.status(503).json({ status: "error", db: "disconnected", message: "Database connection failed" });
   }
 });
 
