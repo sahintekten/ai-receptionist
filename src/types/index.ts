@@ -19,6 +19,7 @@ export interface CalcomConfig {
   gcal_calendar_id?: string;
 }
 
+/** @deprecated GHL replaced by Twenty CRM in V1. Kept for backward compat. */
 export interface GhlConfig {
   location_id: string;
   contact_search_enabled: boolean;

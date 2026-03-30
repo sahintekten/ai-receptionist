@@ -59,7 +59,7 @@ src/
     businessResolver.ts  # agent_id → business config pipeline
   services/
     booking.ts           # Cal.com booking logic
-    crm.ts               # GHL contact/note logic
+    crm.ts               # Twenty CRM service layer
     memory.ts            # Caller memory read/write
     opus.ts              # Post-call processing
     callLog.ts           # Call logging + usage tracking
