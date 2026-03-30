@@ -41,6 +41,21 @@ setInterval(() => {
   }
 }, 60 * 60 * 1000);
 
+// ─── Phone Normalization ─────────────────────────────────
+
+function normalizePhone(phone: string): string {
+  let p = phone.replace(/[\s\-()]/g, "");
+  // Turkish: leading 0 → +90
+  if (p.startsWith("0") && p.length === 11) {
+    p = "+90" + p.substring(1);
+  }
+  // Add +90 if 10 digits starting with 5
+  if (/^\d{10}$/.test(p) && p.startsWith("5")) {
+    p = "+90" + p;
+  }
+  return p;
+}
+
 // ─── Function Handlers ───────────────────────────────────
 
 type HandlerResult = Record<string, unknown>;
@@ -57,6 +72,10 @@ async function handleCheckAvailability(
 ): Promise<HandlerResult> {
   const parsed = CheckAvailabilityArgsSchema.parse(args);
 
+  // Normalize: accept both camelCase and snake_case
+  const dateRange = parsed.dateRange || parsed.date_range || parsed.preferred_date;
+  const serviceType = parsed.serviceType || parsed.service_type || parsed.doctor_name;
+
   // Default: next 3 days from now
   const now = new Date();
   const defaultEnd = new Date(now);
@@ -65,10 +84,9 @@ async function handleCheckAvailability(
   let startDate = now.toISOString();
   let endDate = defaultEnd.toISOString();
 
-  if (parsed.dateRange) {
-    // dateRange could be an ISO date string or a date range
-    startDate = new Date(parsed.dateRange).toISOString();
-    const rangeEnd = new Date(parsed.dateRange);
+  if (dateRange) {
+    startDate = new Date(dateRange).toISOString();
+    const rangeEnd = new Date(dateRange);
     rangeEnd.setDate(rangeEnd.getDate() + 1);
     endDate = rangeEnd.toISOString();
   }
@@ -77,7 +95,7 @@ async function handleCheckAvailability(
     ctx.businessId,
     config,
     { start: startDate, end: endDate },
-    parsed.serviceType,
+    serviceType,
     ctx
   );
 
@@ -113,26 +131,79 @@ async function handleCreateBooking(
   ctx: RequestContext
 ): Promise<HandlerResult> {
   const parsed = CreateBookingArgsSchema.parse(args);
-  const eventTypeId = typeof parsed.eventTypeId === "string"
-    ? parseInt(parsed.eventTypeId, 10)
-    : parsed.eventTypeId;
+
+  // Normalize args: camelCase / snake_case / Retell format
+  const phone = parsed.callerPhone || parsed.caller_phone || ctx.callerPhone;
+  const callerName = parsed.callerName || parsed.caller_name || "Arayan";
+
+  // Slot: direct slot string, or build from date + time
+  let slot = parsed.slot;
+  if (!slot && parsed.date) {
+    const time = parsed.time || "09:00";
+    // Build ISO datetime in Europe/Istanbul
+    slot = `${parsed.date}T${time}:00+03:00`;
+  }
+  if (!slot) {
+    return {
+      result: "error",
+      user_message: "Randevu tarihi belirtilmedi efendim. Hangi tarih ve saati tercih edersiniz?",
+    };
+  }
+
+  // Event type: direct ID or resolve from service_type/doctor_name
+  let eventTypeId: number | undefined;
+  if (parsed.eventTypeId) {
+    eventTypeId = typeof parsed.eventTypeId === "string"
+      ? parseInt(parsed.eventTypeId, 10)
+      : parsed.eventTypeId;
+  } else if (parsed.service_type || parsed.doctor_name) {
+    const calcomIntegration = config.integrations.find((i) => i.type === "calcom");
+    if (calcomIntegration) {
+      const calcomConfig = calcomIntegration.config as { event_types?: Array<{ id: number; name: string; service_type: string }> };
+      const searchTerm = (parsed.service_type || parsed.doctor_name || "").toLowerCase();
+      const match = calcomConfig.event_types?.find(
+        (et) => et.service_type.toLowerCase().includes(searchTerm)
+          || et.name.toLowerCase().includes(searchTerm)
+      );
+      if (match) eventTypeId = match.id;
+    }
+  }
+
+  // Fallback: use first event type
+  if (!eventTypeId) {
+    const calcomIntegration = config.integrations.find((i) => i.type === "calcom");
+    if (calcomIntegration) {
+      const calcomConfig = calcomIntegration.config as { event_types?: Array<{ id: number }> };
+      eventTypeId = calcomConfig.event_types?.[0]?.id;
+    }
+  }
+
+  if (!eventTypeId) {
+    return {
+      result: "error",
+      user_message: "Randevu türü belirlenemedi efendim. Hangi işlem için randevu almak istiyorsunuz?",
+    };
+  }
+
+  // Normalize Turkish phone: remove spaces, leading 0 → +90
+  const normalizedPhone = normalizePhone(phone);
 
   try {
     const result = await bookingService.createBookingForBusiness(
       ctx.businessId,
       config,
-      parsed.callerPhone,
-      parsed.slot,
+      normalizedPhone,
+      slot,
       eventTypeId,
-      parsed.callerName || "Arayan",
+      callerName,
       ctx
     );
 
     // Update memory — never block the call
     try {
       await memoryService.updateMemoryAfterCall(
-        ctx.businessId, parsed.callerPhone,
-        { lastCallId: ctx.callId, recentAppointmentStatus: "booked", callerName: parsed.callerName },
+        ctx.businessId, normalizedPhone,
+        { lastCallId: ctx.callId, recentAppointmentStatus: "booked", callerName },
         ctx
       );
     } catch (e) {
@@ -179,19 +250,28 @@ async function handleCancelBooking(
   }
 
   const parsed = CancelBookingArgsSchema.parse(args);
+  const bookingId = parsed.bookingId || parsed.booking_id;
+  const phone = normalizePhone(parsed.callerPhone || parsed.caller_phone || ctx.callerPhone);
+
+  if (!bookingId) {
+    return {
+      result: "error",
+      user_message: "İptal edilecek randevu belirtilmedi efendim. Önce randevularınızı kontrol edeyim.",
+    };
+  }
 
   const result = await bookingService.cancelBookingForBusiness(
     ctx.businessId,
     config,
-    parsed.bookingId,
-    parsed.callerPhone,
+    bookingId,
+    phone,
     ctx
   );
 
   // Update memory — never block the call
   try {
     await memoryService.updateMemoryAfterCall(
-      ctx.businessId, parsed.callerPhone,
+      ctx.businessId, phone,
       { lastCallId: ctx.callId, recentAppointmentStatus: "cancelled" },
       ctx
     );
@@ -217,12 +297,16 @@ async function handleLookupBookings(
   const parsed = LookupBookingsArgsSchema.parse(args);
   recordLookup(ctx.callId);
 
+  const phone = normalizePhone(parsed.callerPhone || parsed.caller_phone || ctx.callerPhone);
+  const name = parsed.name || parsed.caller_name;
+  const dateHint = parsed.dateHint || parsed.date_hint;
+
   const result = await bookingService.lookupBookingsForBusiness(
     ctx.businessId,
     config,
-    parsed.callerPhone,
-    parsed.name,
-    parsed.dateHint,
+    phone,
+    name,
+    dateHint,
     ctx
   );
 
@@ -247,7 +331,13 @@ async function handleTakeMessage(
   ctx: RequestContext
 ): Promise<HandlerResult> {
   const parsed = TakeMessageArgsSchema.parse(args);
-  const messageType = parsed.type;
+
+  // Normalize: accept both camelCase and snake_case
+  const phone = normalizePhone(parsed.callerPhone || parsed.caller_phone || ctx.callerPhone);
+  const callerName = parsed.callerName || parsed.caller_name;
+  const messageText = parsed.messageText || parsed.message || "";
+  const messageTypeRaw = parsed.message_type || parsed.type;
+  const messageType = (["message", "callback", "urgent"].includes(messageTypeRaw) ? messageTypeRaw : "message") as "message" | "callback" | "urgent";
 
   const typeLabels: Record<string, string> = {
     message: "MESAJ",
@@ -260,8 +350,8 @@ async function handleTakeMessage(
     const { personId } = await crmService.upsertContactForBusiness(
       ctx.businessId,
       config,
-      parsed.callerPhone,
-      parsed.callerName,
+      phone,
+      callerName,
       ctx
     );
 
@@ -269,9 +359,9 @@ async function handleTakeMessage(
     const noteTitle = `${typeLabels[messageType]} — ${new Date().toISOString().split("T")[0]}`;
     const noteBody = [
       `**Tip:** ${typeLabels[messageType]}`,
-      `**Arayan:** ${parsed.callerName || "Bilinmiyor"}`,
-      `**Telefon:** ${parsed.callerPhone}`,
-      `**Mesaj:** ${parsed.messageText}`,
+      `**Arayan:** ${callerName || "Bilinmiyor"}`,
+      `**Telefon:** ${phone}`,
+      `**Mesaj:** ${messageText}`,
       `**Tarih:** ${new Date().toISOString()}`,
       `**Call ID:** ${ctx.callId}`,
     ].join("\n\n");
@@ -289,11 +379,11 @@ async function handleTakeMessage(
     // Update memory — never block the call
     try {
       await memoryService.updateMemoryAfterCall(
-        ctx.businessId, parsed.callerPhone,
+        ctx.businessId, phone,
         {
           lastCallId: ctx.callId,
-          callerName: parsed.callerName,
-          recentMessageSummary: `[${typeLabels[messageType]}] ${parsed.messageText.slice(0, 200)}`,
+          callerName,
+          recentMessageSummary: `[${typeLabels[messageType]}] ${messageText.slice(0, 200)}`,
         },
         ctx
       );
@@ -343,7 +433,7 @@ async function handleGetCallerMemory(
   ctx: RequestContext
 ): Promise<HandlerResult> {
   const parsed = GetCallerMemoryArgsSchema.parse(args);
-  const phone = parsed.callerPhone || ctx.callerPhone;
+  const phone = parsed.callerPhone || parsed.caller_phone || ctx.callerPhone;
 
   if (!phone || phone === "unknown") {
     return {

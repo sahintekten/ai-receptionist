@@ -14,37 +14,61 @@ const RetellCallSchema = z.object({
 
 // ─── Function Args Schemas ───────────────────────────────
 
+// All schemas accept both camelCase and snake_case — Retell sends snake_case
+
 export const CheckAvailabilityArgsSchema = z.object({
   dateRange: z.string().optional(),
+  date_range: z.string().optional(),
+  preferred_date: z.string().optional(),
+  preferred_time: z.string().optional(),
   serviceType: z.string().optional(),
+  service_type: z.string().optional(),
+  doctor_name: z.string().optional(),
 }).passthrough();
 
 export const CreateBookingArgsSchema = z.object({
-  callerPhone: z.string(),
-  slot: z.string(),
-  eventTypeId: z.union([z.string(), z.number()]),
+  callerPhone: z.string().optional(),
+  caller_phone: z.string().optional(),
+  slot: z.string().optional(),
+  date: z.string().optional(),
+  time: z.string().optional(),
+  eventTypeId: z.union([z.string(), z.number()]).optional(),
+  service_type: z.string().optional(),
   callerName: z.string().optional(),
+  caller_name: z.string().optional(),
+  doctor_name: z.string().optional(),
 }).passthrough();
 
 export const CancelBookingArgsSchema = z.object({
-  bookingId: z.string(),
-  callerPhone: z.string(),
+  bookingId: z.string().optional(),
+  booking_id: z.string().optional(),
+  callerPhone: z.string().optional(),
+  caller_phone: z.string().optional(),
 }).passthrough();
 
 export const LookupBookingsArgsSchema = z.object({
-  callerPhone: z.string(),
+  callerPhone: z.string().optional(),
+  caller_phone: z.string().optional(),
   name: z.string().optional(),
+  caller_name: z.string().optional(),
   dateHint: z.string().optional(),
+  date_hint: z.string().optional(),
 }).passthrough();
 
 export const TakeMessageArgsSchema = z.object({
-  callerPhone: z.string(),
-  messageText: z.string(),
+  callerPhone: z.string().optional(),
+  caller_phone: z.string().optional(),
+  messageText: z.string().optional(),
+  message: z.string().optional(),
   callerName: z.string().optional(),
+  caller_name: z.string().optional(),
   type: z.enum(["message", "callback", "urgent"]).default("message"),
+  message_type: z.string().optional(),
 }).passthrough();
+
 export const GetCallerMemoryArgsSchema = z.object({
   callerPhone: z.string().optional(),
+  caller_phone: z.string().optional(),
 }).passthrough();
 export const GetBusinessHoursArgsSchema = z.object({}).passthrough();
 export const GetEmergencyInfoArgsSchema = z.object({}).passthrough();
