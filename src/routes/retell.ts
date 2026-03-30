@@ -8,11 +8,13 @@ import {
   CreateBookingArgsSchema,
   CancelBookingArgsSchema,
   LookupBookingsArgsSchema,
+  TakeMessageArgsSchema,
   type FunctionName,
 } from "../lib/validation";
 import { logger } from "../lib/logger";
 import { AppError, BusinessNotFoundError, IntegrationError, LookupRequiredError } from "../lib/errors";
 import * as bookingService from "../services/booking";
+import * as crmService from "../services/crm";
 import type { ResolvedBusinessConfig } from "../types";
 import type { RequestContext } from "../lib/requestContext";
 
@@ -210,11 +212,81 @@ async function handleLookupBookings(
 }
 
 async function handleTakeMessage(
-  _args: Record<string, unknown>,
-  _config: ResolvedBusinessConfig,
-  _ctx: RequestContext
+  args: Record<string, unknown>,
+  config: ResolvedBusinessConfig,
+  ctx: RequestContext
 ): Promise<HandlerResult> {
-  return { result: "not_implemented", message: "take_message not implemented yet" };
+  const parsed = TakeMessageArgsSchema.parse(args);
+  const messageType = parsed.type;
+
+  const typeLabels: Record<string, string> = {
+    message: "MESAJ",
+    callback: "GERI ARAMA",
+    urgent: "ACIL",
+  };
+
+  try {
+    // Upsert contact in CRM
+    const { personId } = await crmService.upsertContactForBusiness(
+      ctx.businessId,
+      config,
+      parsed.callerPhone,
+      parsed.callerName,
+      ctx
+    );
+
+    // Build note
+    const noteTitle = `${typeLabels[messageType]} — ${new Date().toISOString().split("T")[0]}`;
+    const noteBody = [
+      `**Tip:** ${typeLabels[messageType]}`,
+      `**Arayan:** ${parsed.callerName || "Bilinmiyor"}`,
+      `**Telefon:** ${parsed.callerPhone}`,
+      `**Mesaj:** ${parsed.messageText}`,
+      `**Tarih:** ${new Date().toISOString()}`,
+      `**Call ID:** ${ctx.callId}`,
+    ].join("\n\n");
+
+    // Write note to CRM
+    const { noteId } = await crmService.writeCallNoteForBusiness(
+      ctx.businessId,
+      config,
+      personId,
+      noteTitle,
+      noteBody,
+      ctx
+    );
+
+    // Type-specific responses
+    const userMessages: Record<string, string> = {
+      message: "Mesajınızı aldım efendim, en kısa sürede size dönüş yapılacaktır.",
+      callback: "Geri arama talebinizi kaydettim efendim, size dönüş yapılacaktır.",
+      urgent: (config.business.urgentEscalationConfig as { escalation_message?: string })?.escalation_message
+        || "Talebinizi acil olarak ilettim efendim, en kısa sürede size dönüş yapılacaktır.",
+    };
+
+    return {
+      result: "success",
+      type: messageType,
+      noteId,
+      personId,
+      user_message: userMessages[messageType],
+    };
+  } catch (error) {
+    // Graceful degradation — CRM failure should never crash the call
+    logger.error("CRM write failed in take_message", {
+      call_id: ctx.callId,
+      business_id: ctx.businessId,
+      action: "take_message",
+      status: "crm_failure",
+      error: error instanceof Error ? error.message : String(error),
+    });
+
+    return {
+      result: "partial_success",
+      type: messageType,
+      user_message: "Mesajınızı aldım efendim, size dönüş yapılacaktır.",
+    };
+  }
 }
 
 async function handleGetCallerMemory(

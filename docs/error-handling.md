@@ -44,8 +44,8 @@ Use `INSERT ... ON CONFLICT (call_id) DO NOTHING` and check affected row count.
 - Do NOT use SELECT-then-INSERT — race condition when two identical webhooks arrive simultaneously.
 
 ## CRM Note Deduplication
-Store `ghl_note_id` in call_logs after first successful CRM note write.
-Before writing or retrying a CRM note, check if `ghl_note_id` is already populated for this call_id. If yes, update instead of create. Prevents duplicate CRM notes from retries or timeout-then-success scenarios.
+Store `crm_note_id` in call_logs after first successful CRM note write.
+Before writing or retrying a CRM note, check if `crm_note_id` is already populated for this call_id. If yes, update instead of create. Prevents duplicate CRM notes from retries or timeout-then-success scenarios.
 
 ## Interrupted Calls
 When caller hangs up mid-conversation:

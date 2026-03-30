@@ -12,6 +12,7 @@ generator client {
 enum IntegrationType {
   calcom
   ghl
+  twenty
   retell
   anthropic
 }
@@ -125,7 +126,7 @@ model CallLog {
   opusFailureReason    String?              @map("opus_failure_reason")
   orphanedBookingFlag  Boolean              @default(false) @map("orphaned_booking_flag")
   crmWriteStatus       CrmWriteStatus       @default(skipped) @map("crm_write_status")
-  ghlNoteId            String?              @map("ghl_note_id")
+  crmNoteId            String?              @map("crm_note_id")
   createdAt            DateTime             @default(now()) @map("created_at")
   updatedAt            DateTime             @updatedAt @map("updated_at")
 

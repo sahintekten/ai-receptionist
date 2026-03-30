@@ -37,7 +37,12 @@ export const LookupBookingsArgsSchema = z.object({
   dateHint: z.string().optional(),
 }).passthrough();
 
-export const TakeMessageArgsSchema = z.object({}).passthrough();
+export const TakeMessageArgsSchema = z.object({
+  callerPhone: z.string(),
+  messageText: z.string(),
+  callerName: z.string().optional(),
+  type: z.enum(["message", "callback", "urgent"]).default("message"),
+}).passthrough();
 export const GetCallerMemoryArgsSchema = z.object({}).passthrough();
 export const GetBusinessHoursArgsSchema = z.object({}).passthrough();
 export const GetEmergencyInfoArgsSchema = z.object({}).passthrough();

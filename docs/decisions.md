@@ -95,7 +95,7 @@ Key V1 decisions and rationale (53 decisions across 6 review rounds):
 - booking ownership verification: bookingId must match businessId + callerPhone before cancel/reschedule executes. V1 authorized by phone match only — pilot businesses informed.
 
 ## Resilience (Review Round 7)
-- CRM note dedup via ghl_note_id stored in call_logs: prevents duplicate notes from retries
+- CRM note dedup via crm_note_id stored in call_logs: prevents duplicate notes from retries
 - Opus memory update guarded by last_call_id match: prevents stale overwrite when rapid successive calls cause out-of-order Opus completion
 - urgent escalation V1: soft promise only ("flagging as priority"), no real-time notification to notify_contact. notify_contact and response_time_promise fields kept in schema for V2.
 - GHL token lifecycle must be documented during spike: auth method, token expiry, refresh mechanism, 401 handling

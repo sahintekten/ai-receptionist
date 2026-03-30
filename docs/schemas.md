@@ -26,7 +26,7 @@ Empty = closed that day. Times in business timezone. No holiday model V1. Does n
 - post_processing_status: pending | completed | failed | skipped
 - opus_failure_reason, orphaned_booking_flag (bool)
 - crm_write_status: success | failed | skipped
-- ghl_note_id (nullable, for CRM note dedup — stored after first successful note write, checked before retry/update)
+- crm_note_id (nullable, for CRM note dedup — stored after first successful note write, checked before retry/update)
 - raw_phone (original format)
 - Indexes: business_id+created_at, call_id (unique), business_id+caller_phone
 

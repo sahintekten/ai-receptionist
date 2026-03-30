@@ -17,11 +17,13 @@
 - Booking operations: NO retry (double booking risk)
 - Booking conflict (Cal.com 409): re-query availability, offer alternatives
 
-## GoHighLevel (GHL)
+> **V1 Update:** GHL replaced by Twenty CRM for V1. See `docs/twenty-api-contract.md` for API details.
+
+## GoHighLevel (GHL) _(replaced by Twenty CRM in V1)_
 - One agency account, one location per business
 - Every call writes: contact + notes (phone, name, summary, disposition, booking outcome, message)
 - Contact dedup: search by phone in business location → update if exists, create if not
-- CRM note dedup: store ghl_note_id in call_logs after first successful write. Check before retry/update to prevent duplicate notes.
+- CRM note dedup: store crm_note_id in call_logs after first successful write. Check before retry/update to prevent duplicate notes.
 - CRM write retry: 1 attempt on failure, then log and continue
 - V1: direct API writes, no pipeline, no workflow triggers
 - All writes go to correct business location (business_id → GHL location_id mapping)

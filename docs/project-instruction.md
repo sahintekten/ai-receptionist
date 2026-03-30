@@ -292,8 +292,8 @@ For every call:
 Do not create duplicate contacts for the same phone number within a business location.
 
 ## GHL CRM note deduplication
-Store `ghl_note_id` in call_logs after the first successful CRM note write.
-Before writing or retrying a CRM note, check if `ghl_note_id` is already populated for this call_id.
+Store `crm_note_id` in call_logs after the first successful CRM note write.
+Before writing or retrying a CRM note, check if `crm_note_id` is already populated for this call_id.
 If yes, update the existing note instead of creating a new one.
 This prevents duplicate CRM notes from retries or timeout-then-success scenarios.
 

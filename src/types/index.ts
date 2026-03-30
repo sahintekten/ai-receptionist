@@ -24,6 +24,10 @@ export interface GhlConfig {
   contact_search_enabled: boolean;
 }
 
+export interface TwentyConfig {
+  api_key: string;
+}
+
 export interface RetellConfig {
   agent_id: string;
   webhook_url: string;
@@ -38,6 +42,7 @@ export interface AnthropicConfig {
 export type IntegrationConfigMap = {
   calcom: CalcomConfig;
   ghl: GhlConfig;
+  twenty: TwentyConfig;
   retell: RetellConfig;
   anthropic: AnthropicConfig;
 };
@@ -47,7 +52,7 @@ export type IntegrationConfigMap = {
 export interface ResolvedIntegration {
   id: string;
   type: IntegrationType;
-  config: CalcomConfig | GhlConfig | RetellConfig | AnthropicConfig | Record<string, unknown>;
+  config: CalcomConfig | GhlConfig | TwentyConfig | RetellConfig | AnthropicConfig | Record<string, unknown>;
   isEnabled: boolean;
 }
 

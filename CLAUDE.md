@@ -7,7 +7,7 @@ Multi-tenant voice AI receptionist platform. One backend serves multiple busines
 - PostgreSQL + Prisma
 - Retell AI (Conversation Flow agents, KB, platform call controls)
 - Cal.com (scheduling)
-- GoHighLevel (CRM)
+- Twenty CRM (replaces GHL for V1, $12/seat/mo)
 - Railway (hosting, single service, auto-deploy on main)
 - Vitest (testing)
 - Anthropic Opus (selective reasoning, post-call only by default)
@@ -66,7 +66,7 @@ src/
   integrations/
     retell.ts            # Retell API client
     calcom.ts            # Cal.com API client
-    ghl.ts               # GHL API client
+    twenty.ts            # Twenty CRM API client
     anthropic.ts         # Opus API client
   config/
     validator.ts         # Business config validation
@@ -141,10 +141,11 @@ npm run seed         # Run onboarding seed script
 - Retell outage: developer monitors status page, contacts businesses manually
 - Reschedule = create new first, then cancel old (preserves original on failure)
 - Webhook idempotency via INSERT ON CONFLICT (call_id) DO NOTHING (race-free)
-- CRM note dedup via ghl_note_id stored in call_logs
+- CRM note dedup via crm_note_id stored in call_logs
 - Opus memory update guarded by last_call_id match (prevents stale overwrite)
 - Urgent escalation V1: soft promise only, no real-time notification to notify_contact
 - Booking ownership verified by businessId + callerPhone match before cancel/reschedule
+- Twenty CRM replaces GHL for V1 — simpler API, lower cost ($12/seat vs $97/mo), phone search via client-side filter (composite field filters not supported by Twenty REST API)
 
 ## Environment Variables
 RETELL_API_KEY, CALCOM_API_KEY, GHL_API_KEY, ANTHROPIC_API_KEY,
@@ -167,4 +168,4 @@ list of modified files, test commands, active build priority step,
 any unresolved decisions or blockers from this session.
 
 ## Current Phase
-Step 5: Cal.com integration (completed)
+Step 6: Twenty CRM integration (completed — migration pending Railway DB)
