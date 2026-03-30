@@ -1,0 +1,159 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ─── Enums ───────────────────────────────────────────────
+
+enum IntegrationType {
+  calcom
+  ghl
+  retell
+  anthropic
+}
+
+enum DegradationMode {
+  message
+  callback
+}
+
+enum LanguageMismatchAction {
+  message_take
+  generic_fallback
+  hang_up
+}
+
+enum Disposition {
+  completed
+  interrupted
+  failed
+  no_answer
+}
+
+enum LastStep {
+  greeting
+  intent_detection
+  availability_check
+  booking
+  cancellation
+  rescheduling
+  message_taking
+  emergency
+  followup
+  closing
+}
+
+enum PostProcessingStatus {
+  pending
+  completed
+  failed
+  skipped
+}
+
+enum CrmWriteStatus {
+  success
+  failed
+  skipped
+}
+
+// ─── Models ──────────────────────────────────────────────
+
+model Business {
+  id                     String               @id @default(uuid())
+  name                   String
+  language               String
+  timezone               String
+  operatingHours         Json                  @map("operating_hours")
+  greetingText           String                @map("greeting_text")
+  closingText            String                @map("closing_text")
+  fillerSpeech           String                @map("filler_speech")
+  fallbackMessage        String                @map("fallback_message")
+  degradationMode        DegradationMode       @map("degradation_mode")
+  languageMismatchAction LanguageMismatchAction @map("language_mismatch_action")
+  urgentEscalationConfig Json                  @map("urgent_escalation_config")
+  phoneNumber            String                @map("phone_number")
+  retellAgentId          String                @map("retell_agent_id")
+  kbReference            String?               @map("kb_reference")
+  enabledIntents         Json                  @map("enabled_intents")
+  isActive               Boolean               @default(true) @map("is_active")
+  createdAt              DateTime              @default(now()) @map("created_at")
+  updatedAt              DateTime              @updatedAt @map("updated_at")
+
+  integrationConfigs IntegrationConfig[]
+  callLogs           CallLog[]
+  callerMemories     CallerMemory[]
+
+  @@map("businesses")
+}
+
+model IntegrationConfig {
+  id              String          @id @default(uuid())
+  businessId      String          @map("business_id")
+  integrationType IntegrationType @map("integration_type")
+  configJson      Json            @map("config_json")
+  isEnabled       Boolean         @default(true) @map("is_enabled")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  business Business @relation(fields: [businessId], references: [id])
+
+  @@map("integration_configs")
+}
+
+model CallLog {
+  id                   String               @id @default(uuid())
+  callId               String               @unique @map("call_id")
+  businessId           String               @map("business_id")
+  agentId              String               @map("agent_id")
+  callerPhone          String               @map("caller_phone")
+  rawPhone             String?              @map("raw_phone")
+  startedAt            DateTime?            @map("started_at")
+  endedAt              DateTime?            @map("ended_at")
+  durationSeconds      Int?                 @map("duration_seconds")
+  disposition          Disposition?
+  lastStep             LastStep?            @map("last_step")
+  detectedIntent       String?              @map("detected_intent")
+  rawTranscript        String?              @map("raw_transcript")
+  opusSummary          String?              @map("opus_summary")
+  bookingId            String?              @map("booking_id")
+  messageText          String?              @map("message_text")
+  postProcessingStatus PostProcessingStatus @default(pending) @map("post_processing_status")
+  opusFailureReason    String?              @map("opus_failure_reason")
+  orphanedBookingFlag  Boolean              @default(false) @map("orphaned_booking_flag")
+  crmWriteStatus       CrmWriteStatus       @default(skipped) @map("crm_write_status")
+  ghlNoteId            String?              @map("ghl_note_id")
+  createdAt            DateTime             @default(now()) @map("created_at")
+  updatedAt            DateTime             @updatedAt @map("updated_at")
+
+  business       Business       @relation(fields: [businessId], references: [id])
+  callerMemories CallerMemory[] @relation("LastCallMemory")
+
+  @@index([businessId, createdAt], map: "idx_call_logs_business_created")
+  @@index([businessId, callerPhone], map: "idx_call_logs_business_phone")
+  @@map("call_logs")
+}
+
+model CallerMemory {
+  id                      String   @id @default(uuid())
+  businessId              String   @map("business_id")
+  callerPhone             String   @map("caller_phone")
+  rawPhone                String?  @map("raw_phone")
+  callerName              String?  @map("caller_name")
+  lastCallId              String?  @map("last_call_id")
+  lastCallAt              DateTime? @map("last_call_at")
+  recentAppointmentStatus String?  @map("recent_appointment_status")
+  recentMessageSummary    String?  @map("recent_message_summary")
+  metadataJson            Json?    @map("metadata_json")
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+
+  business Business @relation(fields: [businessId], references: [id])
+  lastCall CallLog? @relation("LastCallMemory", fields: [lastCallId], references: [id])
+
+  @@unique([businessId, callerPhone], map: "uq_caller_memory_business_phone")
+  @@map("caller_memory")
+}

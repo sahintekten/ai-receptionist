@@ -27,7 +27,7 @@ Key V1 decisions and rationale (53 decisions across 6 review rounds):
 - is_active for onboarding only: business pause with custom greeting is V2
 
 ## Retell
-- manual Retell agent creation in V1: standard template documented, API-driven in V2
+- API-driven Retell agent creation in V1: setup script ile programatik oluşturma (V2'den V1'e çekildi)
 - Retell is known SPOF: monitor status page, notify businesses on outage
 - Retell normal agent mode: verify 9 custom function support before building (pre-build test item)
 - Retell response format: general principle locked (success/result/error), exact shape determined during integration
@@ -104,3 +104,11 @@ Key V1 decisions and rationale (53 decisions across 6 review rounds):
 - write and test Retell agent system prompt for first pilot business BEFORE building backend: the prompt is the product, the backend is plumbing
 - Retell function call authentication mechanism must be confirmed during spike: signature verification, shared secret, or alternative
 - Cal.com date conversion responsibility must be decided during spike: does Retell agent or backend convert "tomorrow afternoon" to structured date range?
+
+## Step 0 Decisions (Review Round 8)
+- Retell Conversation Flow agent seçildi (Single Prompt değil): node bazında prompt/tool izolasyonu, fonksiyon sırası yapısal garanti, daha az hallucination
+- API-driven agent creation: V2'den V1'e çekildi, setup script ile programatik oluşturma
+- Retell tool sayısı 8 (reschedule_booking ayrı tool değil): rescheduling = create_booking + cancel_booking kombinasyonu, backend'de hâlâ 9 fonksiyon
+- Cartesia Cleo voice: ElevenLabs'ın 1/3 fiyatına ($0.015/dk vs $0.04/dk), düşük latency (~40-90ms), Sonic 3 ile Türkçe desteği
+- Cal.com ve GHL API spike'ları ayrı phase yerine backend integration adımında yapılacak: ayrı spike gereksiz tekrar
+- Dynamic variables kullanımı: {{current_time_Europe/Istanbul}}, {{user_number}} gibi Retell built-in değişkenler prompt'ta kullanılıyor

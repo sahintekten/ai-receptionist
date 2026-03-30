@@ -5,7 +5,7 @@ Multi-tenant voice AI receptionist platform. One backend serves multiple busines
 ## Tech Stack
 - Node.js + TypeScript
 - PostgreSQL + Prisma
-- Retell AI (voice, conversation flow, KB, platform call controls)
+- Retell AI (Conversation Flow agents, KB, platform call controls)
 - Cal.com (scheduling)
 - GoHighLevel (CRM)
 - Railway (hosting, single service, auto-deploy on main)
@@ -17,13 +17,13 @@ Multi-tenant voice AI receptionist platform. One backend serves multiple busines
 - Business resolver pipeline: agent_id → metadata → telephony → fallback
 - Shared PostgreSQL with business_id scoping (app-layer isolation, RLS-ready schema)
 - Prisma for all migrations. Never raw SQL on production schema outside Prisma.
-- Retell normal agents (NOT Custom LLM WebSocket)
+- Retell Conversation Flow agents (NOT Custom LLM WebSocket, NOT Single Prompt)
 - Retell handles conversation flow, KB queries, and platform-level call controls natively. All state-changing operations (scheduling, CRM, memory) go through backend custom functions. NO Retell built-in Cal.com tools.
 - Two-table config pattern: `businesses` (core) + `integration_configs` (per-integration, config_json)
 
 ## Backend Functions (9 total)
 1. check_availability  2. create_booking  3. cancel_booking
-4. reschedule_booking (create new first, then cancel old)
+4. reschedule_booking (create new first, then cancel old) (Retell tarafında ayrı tool yok — rescheduling node'unda create_booking + cancel_booking kombinasyonu kullanılır. Backend'de reschedule_booking fonksiyonu hâlâ mevcut.)
 5. take_message (type: message | callback | urgent)
 6. get_caller_memory  7. get_business_hours  8. get_emergency_info
 9. lookup_bookings (required before cancel/reschedule, max 3 results)
@@ -129,11 +129,14 @@ npm run seed         # Run onboarding seed script
 - One language per agent per business
 - Cal.com handles booking conflicts (no backend slot locking)
 - Post-call Opus triggered by Retell webhook, never blocks CRM
-- Manual Retell agent creation V1 (standard template, API-driven V2)
+- API-driven Retell agent creation V1 (setup script ile programatik)
 - Multiple event types per business (1:N Cal.com)
 - No AI disclaimer in greeting (receptionist presents as human)
 - 9 backend functions (schedule_followup merged into take_message with type param)
 - Prisma singleton, Zod validation, SIGTERM handling, UTC storage
+- Conversation Flow agent (not Single Prompt) — node bazında prompt ve tool izolasyonu, fonksiyon sırası yapısal garanti
+- Cartesia Cleo voice selected — $0.015/dk, düşük latency, Türkçe desteği
+- Cal.com ve GHL API spike'ları backend integration adımında yapılacak (ayrı phase değil)
 - operating_hours field is informational only (for "what are your hours?" answers)
 - Retell outage: developer monitors status page, contacts businesses manually
 - Reschedule = create new first, then cancel old (preserves original on failure)
@@ -156,6 +159,7 @@ DATABASE_URL, WEBHOOK_SECRET, PORT, NODE_ENV, LOG_LEVEL
 - docs/error-handling.md — retry, timeout, degradation rules
 - docs/onboarding.md — business onboarding steps
 - docs/v2-research.md — future paths (do not build)
+- docs/step0-results.md — Step 0 pre-build validation results
 
 ## When Compacting
 Preserve: multi-tenant safety rules, current implementation phase,
@@ -163,4 +167,4 @@ list of modified files, test commands, active build priority step,
 any unresolved decisions or blockers from this session.
 
 ## Current Phase
-Step 0: Pre-build validation (Retell capability spike + Cal.com API spike + GHL API spike)
+Step 5: Cal.com integration (completed)
