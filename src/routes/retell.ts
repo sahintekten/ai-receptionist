@@ -391,18 +391,65 @@ async function handleGetCallerMemory(
 
 async function handleGetBusinessHours(
   _args: Record<string, unknown>,
-  _config: ResolvedBusinessConfig,
-  _ctx: RequestContext
+  config: ResolvedBusinessConfig,
+  ctx: RequestContext
 ): Promise<HandlerResult> {
-  return { result: "not_implemented", message: "get_business_hours not implemented yet" };
+  const hours = config.business.operatingHours as Record<string, Array<{ open: string; close: string }>>;
+  const timezone = config.business.timezone;
+
+  const dayNames: Record<string, string> = {
+    monday: "Pazartesi", tuesday: "Salı", wednesday: "Çarşamba",
+    thursday: "Perşembe", friday: "Cuma", saturday: "Cumartesi", sunday: "Pazar",
+  };
+
+  const formatted: string[] = [];
+  for (const [day, slots] of Object.entries(hours)) {
+    const label = dayNames[day] || day;
+    if (!slots || slots.length === 0) {
+      formatted.push(`${label}: Kapalı`);
+    } else {
+      const ranges = slots.map((s) => `${s.open}-${s.close}`).join(", ");
+      formatted.push(`${label}: ${ranges}`);
+    }
+  }
+
+  logger.info("Business hours returned", {
+    call_id: ctx.callId, business_id: ctx.businessId,
+    action: "get_business_hours", status: "ok",
+  });
+
+  return {
+    result: "success",
+    hours,
+    timezone,
+    formatted: formatted.join("\n"),
+    user_message: formatted.join(". ") + ".",
+  };
 }
 
 async function handleGetEmergencyInfo(
   _args: Record<string, unknown>,
-  _config: ResolvedBusinessConfig,
-  _ctx: RequestContext
+  config: ResolvedBusinessConfig,
+  ctx: RequestContext
 ): Promise<HandlerResult> {
-  return { result: "not_implemented", message: "get_emergency_info not implemented yet" };
+  const escalationConfig = config.business.urgentEscalationConfig as {
+    situations?: string[];
+    notify_contact?: string;
+    response_time_promise?: string;
+    escalation_message?: string;
+  };
+
+  logger.info("Emergency info returned", {
+    call_id: ctx.callId, business_id: ctx.businessId,
+    action: "get_emergency_info", status: "ok",
+  });
+
+  return {
+    result: "success",
+    situations: escalationConfig.situations || [],
+    escalation_message: escalationConfig.escalation_message || "Talebinizi acil olarak ilettim efendim.",
+    response_time_promise: escalationConfig.response_time_promise || null,
+  };
 }
 
 const functionHandlers: Record<FunctionName, FunctionHandler> = {
