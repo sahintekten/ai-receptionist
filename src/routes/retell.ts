@@ -486,7 +486,15 @@ router.post("/", verifyWebhookSignature, async (req, res) => {
   const { name, args, call } = parsed.data;
   const callId = call.call_id;
   const agentId = call.agent_id;
-  const callerPhone = call.from_number || "unknown";
+  // Phone resolution: prefer telco caller ID, fallback to args (test calls / verbal collection)
+  const argsObj = args as Record<string, unknown>;
+  let callerPhone = call.from_number || "unknown";
+  if (callerPhone === "unknown") {
+    const argsPhone = (argsObj.callerPhone || argsObj.caller_phone) as string | undefined;
+    if (argsPhone && argsPhone.length > 0) {
+      callerPhone = argsPhone;
+    }
+  }
 
   // Phone required for mutation operations — safety net (primary guard is Retell flow)
   const PHONE_REQUIRED_FUNCTIONS: FunctionName[] = [
