@@ -135,8 +135,14 @@ async function handleCreateBooking(
   const parsed = CreateBookingArgsSchema.parse(args);
 
   // Normalize args: camelCase / snake_case / Retell format
-  const phone = parsed.callerPhone || parsed.caller_phone || ctx.callerPhone;
-  const callerName = parsed.callerName || parsed.caller_name || "Arayan";
+  // Reject unresolved Retell template variables (e.g. "{{user_number}}")
+  const isUnresolved = (v: unknown): boolean =>
+    typeof v === "string" && /^\{\{.+\}\}$/.test(v.trim());
+
+  const rawPhone = parsed.callerPhone || parsed.caller_phone || ctx.callerPhone;
+  const phone = isUnresolved(rawPhone) ? "unknown" : rawPhone;
+  const rawName = parsed.callerName || parsed.caller_name;
+  const callerName = isUnresolved(rawName) ? "Arayan" : (rawName || "Arayan");
 
   // Slot: direct slot string, or build from date + time
   let slot = parsed.slot;
