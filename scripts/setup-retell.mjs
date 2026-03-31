@@ -233,18 +233,45 @@ Olası niyetler:
       type: 'conversation',
       instruction: {
         type: 'prompt',
-        text: `Hastanın randevu talebini yönet. Sırayla şu bilgileri topla:
-1. Hangi işlem/hizmet için? (Buna göre doktoru belirle: obezite/mide balonu → Dr. Güneş Tekten, estetik → Prof. Dr. Bahattin Çeliköz)
-2. Tercih edilen tarih ve saat
-3. Hastanın adı soyadı
+        text: `Hastanın randevu talebini yönet. Sırayla bu adımları takip et:
 
-Adımlar:
-- check_availability ile uygunluk kontrol et
-- Uygun slot varsa hastaya söyle ve onay al
-- Onay gelince create_booking ile randevuyu oluştur
-- Randevu detaylarını (tarih, saat, doktor) sözlü olarak onayla
-- Fiyat sorulursa: "Fiyatlarımız muayene sonrasında belirleniyor efendim"
-- Uygun slot yoksa alternatif tarihler öner veya mesaj bırakmayı teklif et`,
+ADIM 1 — İŞLEM BELİRLEME VE DOĞRULAMA:
+Hastanın istediği işlemi anla ve Bilgi Bankası'ndaki kliniğin hizmet listesiyle eşleştir.
+
+Eşleşen hizmet varsa:
+- Kliniğin resmi işlem adıyla doğrula ve doktora yönlendir.
+  Örnek: 'Rinoplasti işlemi için Prof. Dr. Bahattin Çeliköz'den randevu ayarlayabilirim efendim, bunu mu istiyorsunuz?'
+  Örnek: 'Mide balonu işlemi için Uzm. Dr. Güneş Tekten'den randevu ayarlayabilirim efendim, onaylıyor musunuz?'
+- Hasta terimi anlamadıysa basitçe açıkla: 'Yağ transferi ile kalça büyütme işlemi efendim.'
+
+Eşleşen hizmet yoksa:
+- 'Maalesef kliniğimizde bu işlem yapılmıyor efendim.'
+- Hastanın ilgi alanına yakın hizmetleri öner.
+- Hasta bu hizmetlerden birini seçerse devam et. Seçmezse mesaj almayı teklif et.
+
+Belirsizse:
+- İlgili hizmetleri listele ve seçim yaptır.
+
+ADIM 2 — DOKTOR BELİRLEME:
+İşleme göre doktoru belirle:
+- Obezite ve metabolik cerrahi işlemleri → Uzm. Dr. Güneş Tekten
+- Plastik, estetik cerrahi işlemleri → Prof. Dr. Bahattin Çeliköz
+
+ADIM 3 — TARİH VE SAAT:
+Tercih edilen tarih ve saati öğren.
+
+ADIM 4 — BİLGİ TOPLAMA:
+Hastanın adı soyadı ve telefon numarasını al (zaten varsa tekrar sorma).
+
+ADIM 5 — RANDEVU OLUŞTURMA:
+check_availability ve create_booking çağırırken:
+- doctor_name: ZORUNLU — belirlediğin doktor adı
+- service_type: kliniğin resmi hizmet/işlem adı (hastanın kendi kelimesi değil)
+doctor_name olmadan tool çağırma.
+Uygun slot varsa hastaya sun ve onay al.
+Onay gelince create_booking ile randevuyu oluştur.
+Randevu detaylarını (tarih, saat, doktor) sözlü onayla.
+Fiyat sorulursa: 'Fiyatlarımız muayene sonrasında belirleniyor efendim, size bir konsültasyon randevusu ayarlayabilirim.'`,
       },
       tool_ids: ['tool_check_availability', 'tool_create_booking'],
       edges: [
