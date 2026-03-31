@@ -133,48 +133,22 @@ ZORUNLU KURAL:
         ...node,
         instruction: {
           type: 'prompt',
-          text: `Hastanın randevu talebini yönet. Sırayla bu adımları takip et:
+          text: `Hastanın randevu talebini yönet.
 
-ADIM 1 — İŞLEM BELİRLEME VE DOĞRULAMA:
-Hastanın istediği işlemi anla ve Bilgi Bankası'ndaki kliniğin hizmet listesiyle eşleştir.
+SIRA:
+1. Hangi işlem istediğini sor
+2. İşleme göre doktoru belirle ve onayla
+3. Tercih edilen tarih ve saati öğren
+4. check_availability ile kontrol et
+5. İsim sor
+6. Telefon numarası sor
+7. create_booking ile randevuyu oluştur
 
-Eşleşen hizmet varsa:
-- Kliniğin resmi işlem adıyla doğrula ve doktora yönlendir.
-  Örnek: 'Rinoplasti işlemi için Prof. Dr. Bahattin Çeliköz'den randevu ayarlayabilirim efendim, bunu mu istiyorsunuz?'
-  Örnek: 'Mide balonu işlemi için Uzm. Dr. Güneş Tekten'den randevu ayarlayabilirim efendim, onaylıyor musunuz?'
-- Hasta terimi anlamadıysa basitçe açıkla: 'Yağ transferi ile kalça büyütme işlemi efendim.'
-
-Eşleşen hizmet yoksa:
-- 'Maalesef kliniğimizde bu işlem yapılmıyor efendim.'
-- Hastanın ilgi alanına yakın hizmetleri öner.
-- Hasta bu hizmetlerden birini seçerse devam et. Seçmezse mesaj almayı teklif et.
-
-Belirsizse:
-- İlgili hizmetleri listele ve seçim yaptır.
-
-ADIM 2 — DOKTOR BELİRLEME:
-İşleme göre doktoru belirle:
-- Obezite ve metabolik cerrahi işlemleri → Uzm. Dr. Güneş Tekten
-- Plastik, estetik cerrahi işlemleri → Prof. Dr. Bahattin Çeliköz
-
-ADIM 3 — TARİH VE SAAT:
-Tercih edilen tarih ve saati öğren.
-
-ADIM 4 — BİLGİ TOPLAMA:
-Hastanın adı soyadı ve telefon numarasını al.
-Telefon numarasını MUTLAKA hastaya sorarak al: 'Ulaşabileceğimiz telefon numaranızı alabilir miyim efendim?'
-{{user_number}} gibi sistem değişkenlerini caller_phone olarak KULLANMA — hastanın sözlü olarak söylediği numarayı yaz.
-Telefon numarası ve isim alınmadan create_booking ÇAĞIRMA.
-
-ADIM 5 — RANDEVU OLUŞTURMA:
-check_availability ve create_booking çağırırken:
-- doctor_name: ZORUNLU — belirlediğin doktor adı
-- service_type: kliniğin resmi hizmet/işlem adı (hastanın kendi kelimesi değil)
-doctor_name olmadan tool çağırma.
-Uygun slot varsa hastaya sun ve onay al.
-Onay gelince create_booking ile randevuyu oluştur.
-Randevu detaylarını (tarih, saat, doktor) sözlü onayla.
-Fiyat sorulursa: 'Fiyatlarımız muayene sonrasında belirleniyor efendim, size bir konsültasyon randevusu ayarlayabilirim.'`,
+KURALLAR:
+- doctor_name zorunlu — tool çağrısında mutlaka gönder
+- İsim ve numara alınmadan create_booking çağırma
+- {{user_number}} kullanma — numarayı hastadan sesli al
+- Slot yoksa alternatif tarih öner veya mesaj almayı teklif et`,
         },
       };
     }
