@@ -218,7 +218,7 @@ Olası niyetler:
         {
           id: 'edge_to_urgent',
           destination_node_id: 'node_urgent_escalation',
-          transition_condition: { type: 'prompt', prompt: 'Arayan acil bir durum bildiriyor: ameliyat sonrası komplikasyon, şiddetli ağrı, kanama, nefes darlığı, alerjik reaksiyon.' },
+          transition_condition: { type: 'prompt', prompt: 'Arayan acil bir durum bildiriyor. Hastaya yorum yapma, tavsiye verme, açıklama yapma — SADECE acil durum node\'una yönlendir.' },
         },
         {
           id: 'edge_to_callback',
@@ -458,32 +458,30 @@ ZORUNLU KURAL:
       type: 'conversation',
       instruction: {
         type: 'prompt',
-        text: `ACİL DURUM — hastanın durumunu sakin ve güven verici bir şekilde değerlendir.
+        text: `ACİL DURUM — hızlı ve sakin bir şekilde yönet.
 
-ADIM 1 — SAKİNLEŞTİR VE DİNLE:
-- Hastayı sakinleştir: 'Efendim, anlıyorum, endişelenmeniz çok doğal. Sizinle ilgileniyorum.'
-- Belirtileri kısa ve net şekilde dinle, not al
-- Panik yaratma, sakin ol
+YAKLAŞIM: Kısa tut, gereksiz soru sorma, sakin ol.
+
+ADIM 1 — SAKİNLEŞTİR:
+'Efendim, anlıyorum, merak etmeyin. Doktorumuza hemen bilgi vereyim, birkaç bilgi alabilir miyim?'
 
 ADIM 2 — BİLGİ AL:
-- Hastanın adını ve telefon numarasını al (zaten varsa tekrar sorma)
-- 'Doktorumuza hemen iletebilmem için adınızı ve numaranızı alabilir miyim efendim?'
+- Adını ve telefon numarasını al
+- Belirtileri hastanın kendi söyledikleriyle not al (ek soru SORMA, doktor değilsin)
 
-ADIM 3 — KAYDET VE BİLDİR:
+ADIM 3 — KAYDET:
 - take_message tool'unu message_type: 'urgent' ile MUTLAKA çağır
 - Tool çağrılmadan kapanışa GEÇİLMEMELİ
-- Başarılı olduktan sonra: 'Efendim, durumunuzu doktorumuza acil olarak ilettim. Size en kısa sürede geri dönüş yapacak. Lütfen telefonunuzu açık tutun.'
 
-ADIM 4 — SADECE HAYATİ TEHLİKEDE 112:
-- 112 yönlendirmesi SADECE şu durumlarda: nefes alamıyor, bilinç kaybı, kontrol edilemeyen kanama
-- Bu durumda: 'Efendim, bu durumda lütfen hemen 112'yi arayın. Ardından bizi tekrar arayabilirsiniz.'
-- Diğer tüm acil durumlarda (ateş, ağrı, şişlik, kusma) 112 DEĞİL, doktora iletim yap
+ADIM 4 — BİLDİR:
+'Efendim, doktorumuza hemen ilettim, size en kısa sürede dönüş yapacak. Telefonunuzu açık tutun, geçmiş olsun.'
 
-ZORUNLU KURALLAR:
-- take_message(type=urgent) ÇAĞRILMADAN kapanışa GEÇİLMEMELİ
-- İsim ve telefon ALINMADAN take_message ÇAĞRILMAMALI
-- Hastayı her zaman sakinleştir, panik yaratma
-- 112 sadece hayati tehlike durumlarında söylen`,
+YAPMAMASI GEREKENLER:
+- Tıbbi tavsiye verme (sen doktor değilsin)
+- 'Başka belirtiniz var mı?' gibi ek sorular sorma
+- 112 yönlendirmesi yapma (SADECE nefes alamıyor veya bilinç kaybı varsa)
+- Uzun konuşma — kısa ve net ol
+- Yapay veya resmi konuşma — samimi ve doğal ol`,
       },
       tool_ids: ['tool_take_message', 'tool_get_emergency_info'],
       edges: [
