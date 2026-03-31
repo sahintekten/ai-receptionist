@@ -4,7 +4,7 @@ import { z } from "zod";
 
 const RetellCallSchema = z.object({
   call_id: z.string(),
-  agent_id: z.string(),
+  agent_id: z.string().optional(),
   call_type: z.string().optional(),
   from_number: z.string().optional(),
   to_number: z.string().optional(),
@@ -117,7 +117,7 @@ export const RetellCallCompletedSchema = z.object({
   event: z.string(),
   call: z.object({
     call_id: z.string(),
-    agent_id: z.string(),
+    agent_id: z.string().optional(),
     call_type: z.string().optional(),
     from_number: z.string().optional(),
     to_number: z.string().optional(),

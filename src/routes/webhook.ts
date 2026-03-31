@@ -47,8 +47,8 @@ router.post("/call-completed", verifyWebhookSignature, async (req, res) => {
   const callerPhone = call.from_number || "unknown";
 
   try {
-    // Resolve business
-    const config = await resolveBusiness(agentId, callId);
+    // Resolve business — webhook always has agent_id in real calls
+    const config = await resolveBusiness(agentId || "", callId);
     const businessId = config.business.id;
 
     const ctx = createRequestContext({
@@ -75,7 +75,7 @@ router.post("/call-completed", verifyWebhookSignature, async (req, res) => {
       {
         callId,
         businessId,
-        agentId,
+        agentId: agentId || "",
         callerPhone,
         rawPhone: callerPhone,
         startedAt: startMs ? new Date(startMs) : undefined,

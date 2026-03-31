@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { verifyWebhookSignature } from "../middleware/auth";
-import { resolveBusiness } from "../resolver/businessResolver";
+import { resolveBusiness, resolveBusinessByPhone } from "../resolver/businessResolver";
 import { createRequestContext } from "../lib/requestContext";
 import {
   RetellFunctionCallSchema,
@@ -589,6 +589,21 @@ router.post("/", verifyWebhookSignature, async (req, res) => {
   const { name, args, call } = parsed.data;
   const callId = call.call_id;
   const agentId = call.agent_id;
+
+  // Diagnostic log when agent_id is missing (Retell simulation calls)
+  if (!agentId) {
+    const rawCall = req.body?.call || {};
+    logger.warn("agent_id missing from call payload (simulation?)", {
+      call_id: callId,
+      action: name,
+      status: "agent_id_missing",
+      raw_call_keys: Object.keys(rawCall),
+      raw_top_level_keys: Object.keys(req.body || {}),
+      conversation_flow_id: rawCall.conversation_flow_id || null,
+      metadata_agent_id: rawCall.metadata?.agent_id || null,
+    });
+  }
+
   // Phone resolution: prefer telco caller ID, fallback to args (test calls / verbal collection)
   const argsObj = args as Record<string, unknown>;
   let callerPhone = call.from_number || "unknown";
@@ -618,8 +633,43 @@ router.post("/", verifyWebhookSignature, async (req, res) => {
   }
 
   try {
-    // Resolve business from agent_id
-    const config = await resolveBusiness(agentId, callId);
+    // Resolve business — fallback chain for simulation calls without agent_id
+    let config: ResolvedBusinessConfig;
+    const rawCall = req.body?.call || {};
+
+    if (agentId) {
+      // Primary path: agent_id present (real calls)
+      config = await resolveBusiness(agentId, callId);
+    } else {
+      // Fallback chain for simulation calls
+      const fallbackAgentId = rawCall.conversation_flow_id
+        || rawCall.metadata?.agent_id
+        || rawCall.metadata?.retell_agent_id;
+
+      if (fallbackAgentId) {
+        logger.info("Resolving business via fallback agent_id", {
+          call_id: callId,
+          action: name,
+          status: "fallback_resolution",
+          fallback_source: rawCall.conversation_flow_id ? "conversation_flow_id"
+            : rawCall.metadata?.agent_id ? "metadata.agent_id"
+            : "metadata.retell_agent_id",
+          fallback_agent_id: fallbackAgentId,
+        });
+        config = await resolveBusiness(fallbackAgentId, callId);
+      } else if (call.to_number) {
+        // Last resort: resolve by called phone number
+        logger.info("Resolving business via phone number fallback", {
+          call_id: callId,
+          action: name,
+          status: "phone_fallback",
+          to_number: call.to_number,
+        });
+        config = await resolveBusinessByPhone(call.to_number, callId);
+      } else {
+        throw new BusinessNotFoundError("no agent_id or fallback available");
+      }
+    }
     const businessId = config.business.id;
 
     // Create request context
