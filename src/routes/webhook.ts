@@ -61,22 +61,27 @@ router.post("/call-completed", verifyWebhookSignature, async (req, res) => {
   const agentId = call.agent_id;
   let callerPhone = call.from_number || "unknown";
 
-  // Fallback: use phone cached during in-call handlers (web test calls have no from_number)
+  // Fallback: use phone+name cached during in-call handlers (web test calls have no from_number)
+  let callerName: string | undefined;
   if (callerPhone === "unknown") {
     const cacheSize = callPhoneCache.size;
     const cached = callPhoneCache.get(callId);
     logger.info("Phone cache lookup", {
       action: "phone_cache_read",
       call_id: callId,
-      cached_phone: cached || "miss",
+      cached_phone: cached?.phone || "miss",
+      cached_name: cached?.name || null,
       cache_size: cacheSize,
       cache_keys: Array.from(callPhoneCache.keys()).slice(0, 5),
     });
     if (cached) {
-      callerPhone = cached;
+      callerPhone = cached.phone;
+      callerName = cached.name;
       callPhoneCache.delete(callId);
     }
   } else {
+    const cached = callPhoneCache.get(callId);
+    callerName = cached?.name;
     callPhoneCache.delete(callId);
   }
 
@@ -171,7 +176,7 @@ router.post("/call-completed", verifyWebhookSignature, async (req, res) => {
     if (callerPhone && callerPhone !== "unknown") {
       try {
         const { personId } = await crmService.upsertContactForBusiness(
-          businessId, config, callerPhone, undefined, ctx
+          businessId, config, callerPhone, callerName, ctx
         );
 
         const disposition = mapDisposition(call.disconnection_reason);

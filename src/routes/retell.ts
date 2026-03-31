@@ -22,17 +22,27 @@ import type { RequestContext } from "../lib/requestContext";
 
 const router = Router();
 
-// ─── In-memory call phone cache (callId → phone, for post-call pipeline) ────
+// ─── In-memory call cache (callId → phone+name, for post-call pipeline) ────
 
-export const callPhoneCache = new Map<string, string>();
+export interface CachedCallerInfo {
+  phone: string;
+  name?: string;
+}
 
-function cacheCallerPhone(callId: string, phone: string): void {
+export const callPhoneCache = new Map<string, CachedCallerInfo>();
+
+function cacheCallerPhone(callId: string, phone: string, name?: string): void {
   if (phone && phone !== "unknown") {
-    callPhoneCache.set(callId, phone);
+    const existing = callPhoneCache.get(callId);
+    callPhoneCache.set(callId, {
+      phone,
+      name: name || existing?.name,
+    });
     logger.info("Phone cached for post-call", {
       action: "phone_cache_write",
       call_id: callId,
       phone,
+      name: name || existing?.name || null,
       cache_size: callPhoneCache.size,
     });
   }
@@ -171,6 +181,11 @@ async function handleCreateBooking(
   const phone = isUnresolved(rawPhone) ? "unknown" : rawPhone;
   const rawName = parsed.callerName || parsed.caller_name;
   const callerName = isUnresolved(rawName) ? "Arayan" : (rawName || "Arayan");
+
+  // Cache name for post-call CRM
+  if (callerName && callerName !== "Arayan") {
+    cacheCallerPhone(ctx.callId, phone || ctx.callerPhone, callerName);
+  }
 
   // Slot: direct slot string, or build from date + time
   let slot = parsed.slot;
@@ -413,6 +428,11 @@ async function handleTakeMessage(
   const messageText = parsed.messageText || parsed.message || "";
   const messageTypeRaw = parsed.message_type || parsed.type;
   const messageType = (["message", "callback", "urgent"].includes(messageTypeRaw) ? messageTypeRaw : "message") as "message" | "callback" | "urgent";
+
+  // Cache name for post-call CRM
+  if (callerName) {
+    cacheCallerPhone(ctx.callId, phone || ctx.callerPhone, callerName);
+  }
 
   const typeLabels: Record<string, string> = {
     message: "MESAJ",
