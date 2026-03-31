@@ -183,24 +183,23 @@ export async function cancelBookingForBusiness(
   config: ResolvedBusinessConfig,
   bookingUid: string,
   callerPhone: string,
-  ctx: RequestContext
+  ctx: RequestContext,
+  skipOwnershipCheck = false
 ): Promise<{ cancelled: boolean; bookingUid: string }> {
-  // Verify booking ownership: bookingUid must belong to this business + caller
-  const calcomConfig = getCalcomConfig(config);
-  const eventTypeIds = calcomConfig.event_types.map((et) => et.id);
+  // Verify booking ownership unless already verified by prior lookup
+  if (!skipOwnershipCheck) {
+    const sanitizedPhone = callerPhone.replace(/[^0-9]/g, "");
+    const attendeeEmail = `caller_${sanitizedPhone}@phone.aireceptionist.local`;
 
-  const sanitizedPhone = callerPhone.replace(/[^0-9]/g, "");
-  const attendeeEmail = `caller_${sanitizedPhone}@phone.aireceptionist.local`;
+    const existingBookings = await calcom.getBookings(
+      { attendeeEmail, status: ["upcoming"] },
+      logContext(ctx)
+    );
 
-  // Look up the booking to verify ownership
-  const existingBookings = await calcom.getBookings(
-    { attendeeEmail, status: ["upcoming"] },
-    logContext(ctx)
-  );
-
-  const targetBooking = existingBookings.find((b) => b.uid === bookingUid);
-  if (!targetBooking) {
-    throw new BookingOwnershipError();
+    const targetBooking = existingBookings.find((b) => b.uid === bookingUid);
+    if (!targetBooking) {
+      throw new BookingOwnershipError();
+    }
   }
 
   logger.info("Cancelling booking", {
@@ -248,31 +247,66 @@ export async function lookupBookingsForBusiness(
   dateHint: string | undefined,
   ctx: RequestContext
 ): Promise<BookingLookupResult> {
-  const sanitizedPhone = callerPhone.replace(/[^0-9]/g, "");
-  const attendeeEmail = `caller_${sanitizedPhone}@phone.aireceptionist.local`;
-
   logger.info("Looking up bookings", {
     ...logContext(ctx),
     action: "lookup_bookings",
     status: "processing",
+    has_phone: callerPhone !== "unknown",
+    has_name: !!name,
+    has_date_hint: !!dateHint,
   });
 
-  const filters: Parameters<typeof calcom.getBookings>[0] = {
-    attendeeEmail,
-    status: ["upcoming"],
-    take: 10,
-    sortStart: "asc",
-  };
+  let bookings: Awaited<ReturnType<typeof calcom.getBookings>> = [];
+  let lookupMethod = "none";
 
-  if (dateHint) {
-    filters.afterStart = dateHint;
+  // Bridge 1: Phone-based lookup
+  if (callerPhone && callerPhone !== "unknown") {
+    const sanitizedPhone = callerPhone.replace(/[^0-9]/g, "");
+    const attendeeEmail = `caller_${sanitizedPhone}@phone.aireceptionist.local`;
+    const filters: Parameters<typeof calcom.getBookings>[0] = {
+      attendeeEmail,
+      status: ["upcoming"],
+      take: 10,
+      sortStart: "asc",
+    };
+    if (dateHint) filters.afterStart = dateHint;
+
+    bookings = await calcom.getBookings(filters, logContext(ctx));
+    if (bookings.length > 0) lookupMethod = "phone";
   }
 
-  const bookings = await calcom.getBookings(filters, logContext(ctx));
+  // Bridge 2: Name-based lookup
+  if (bookings.length === 0 && name) {
+    const filters: Parameters<typeof calcom.getBookings>[0] = {
+      attendeeName: name,
+      status: ["upcoming"],
+      take: 10,
+      sortStart: "asc",
+    };
+    if (dateHint) filters.afterStart = dateHint;
 
-  // Filter by event types belonging to this business
-  const calcomConfig = getCalcomConfig(config);
-  const businessEventTypeIds = calcomConfig.event_types.map((et) => et.id);
+    bookings = await calcom.getBookings(filters, logContext(ctx));
+    if (bookings.length > 0) lookupMethod = "name";
+  }
+
+  // Bridge 3: Date-based with client-side name filter
+  if (bookings.length === 0 && dateHint) {
+    const filters: Parameters<typeof calcom.getBookings>[0] = {
+      status: ["upcoming"],
+      afterStart: dateHint,
+      take: 20,
+      sortStart: "asc",
+    };
+
+    const allBookings = await calcom.getBookings(filters, logContext(ctx));
+    if (name) {
+      const searchName = name.toLowerCase();
+      bookings = allBookings.filter((b) =>
+        b.attendees?.some((a) => a.name.toLowerCase().includes(searchName))
+      );
+    }
+    if (bookings.length > 0) lookupMethod = "date_filter";
+  }
 
   // Max 3 results for voice disambiguation
   const filtered = bookings.slice(0, 3);
@@ -283,6 +317,7 @@ export async function lookupBookingsForBusiness(
     status: "ok",
     duration_ms: Date.now() - ctx.startTime,
     results_count: filtered.length,
+    lookup_method: lookupMethod,
   });
 
   return {

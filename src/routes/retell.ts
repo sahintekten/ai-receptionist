@@ -355,12 +355,15 @@ async function handleCancelBooking(
     };
   }
 
+  // Skip ownership check if phone is unknown — lookup_bookings already verified
+  const skipOwnership = !phone || phone === "unknown";
   const result = await bookingService.cancelBookingForBusiness(
     ctx.businessId,
     config,
     bookingId,
     phone,
-    ctx
+    ctx,
+    skipOwnership
   );
 
   // Update memory — never block the call
