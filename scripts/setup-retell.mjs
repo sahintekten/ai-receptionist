@@ -500,21 +500,31 @@ YAPMAMASI GEREKENLER:
       type: 'conversation',
       instruction: {
         type: 'prompt',
-        text: `Arayan daha önce söz verilen bir geri arama veya takip hakkında soruyor.
+        text: `Geri arama talebi — hastanın daha önce bıraktığı mesaj veya söz verilen geri aramayı takip et.
 
-Adımlar:
-1. get_caller_memory ile arayanın geçmiş kayıtlarını kontrol et
-2. Eğer kayıt varsa: durumu bildir
-3. Eğer kayıt yoksa veya geri arama kaydı bulunamadıysa:
-   "Efendim, kayıtlarımda bu konuda bir not göremiyorum. Dilerseniz tekrar bir geri arama talebi oluşturayım."
-4. Geri arama talebi oluşturmak isterse take_message tool'unu message_type: "callback" ile çağır`,
+ADIM 1 — BİLGİ AL:
+- Hastanın adını ve telefon numarasını al
+- {{user_number}} KULLANMA — her zaman hastadan sesli olarak numara iste
+- Hangi konuda geri arama beklediklerini kısaca öğren
+
+ADIM 2 — KAYDET:
+- take_message tool'unu message_type: 'callback' ile MUTLAKA çağır
+- Mesaja geri arama talebinin detayını yaz
+
+ADIM 3 — BİLDİR:
+'Efendim, geri arama talebinizi not aldım, en kısa sürede size dönüş yapılacak.'
+
+ZORUNLU KURALLAR:
+- take_message tool'u ÇAĞRILMADAN kapanışa GEÇİLMEMELİ
+- İsim ve telefon numarası ALINMADAN take_message ÇAĞRILMAMALI
+- {{user_number}} template variable'ını KULLANMA — her zaman hastadan sor`,
       },
       tool_ids: ['tool_get_caller_memory', 'tool_take_message'],
       edges: [
         {
           id: 'edge_callback_to_closing',
           destination_node_id: 'node_closing',
-          transition_condition: { type: 'prompt', prompt: 'Takip bilgisi verildi veya geri arama talebi kaydedildi.' },
+          transition_condition: { type: 'prompt', prompt: 'take_message tool başarıyla çağrıldı ve geri arama talebi kaydedildi.' },
         },
         {
           id: 'edge_callback_to_intent',

@@ -71,6 +71,32 @@ YAPMAMASI GEREKENLER:
         },
       };
     }
+    if (node.id === 'node_callback_followup') {
+      return {
+        ...node,
+        instruction: {
+          type: 'prompt',
+          text: `Geri arama talebi — hastanın daha önce bıraktığı mesaj veya söz verilen geri aramayı takip et.
+
+ADIM 1 — BİLGİ AL:
+- Hastanın adını ve telefon numarasını al
+- {{user_number}} KULLANMA — her zaman hastadan sesli olarak numara iste
+- Hangi konuda geri arama beklediklerini kısaca öğren
+
+ADIM 2 — KAYDET:
+- take_message tool'unu message_type: 'callback' ile MUTLAKA çağır
+- Mesaja geri arama talebinin detayını yaz
+
+ADIM 3 — BİLDİR:
+'Efendim, geri arama talebinizi not aldım, en kısa sürede size dönüş yapılacak.'
+
+ZORUNLU KURALLAR:
+- take_message tool'u ÇAĞRILMADAN kapanışa GEÇİLMEMELİ
+- İsim ve telefon numarası ALINMADAN take_message ÇAĞRILMAMALI
+- {{user_number}} template variable'ını KULLANMA — her zaman hastadan sor`,
+        },
+      };
+    }
     if (node.id === 'node_message_taking') {
       return {
         ...node,
