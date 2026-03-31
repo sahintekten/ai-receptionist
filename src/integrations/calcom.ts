@@ -194,6 +194,7 @@ export async function createBooking(
       phone: attendeePhone,
       requested_service: requestedService || "belirtilmedi",
     },
+    ...(requestedService ? { notes: `İşlem: ${requestedService}` } : {}),
   };
 
   logger.debug("Cal.com create booking request", {

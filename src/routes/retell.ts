@@ -41,6 +41,19 @@ setInterval(() => {
   }
 }, 60 * 60 * 1000);
 
+// ─── Date Formatting ────────────────────────────────────
+
+function formatDateTurkish(isoDate: string, timezone: string): string {
+  const date = new Date(isoDate);
+  const dayMonth = new Intl.DateTimeFormat("tr-TR", {
+    day: "numeric", month: "long", weekday: "long", timeZone: timezone,
+  }).format(date);
+  const time = new Intl.DateTimeFormat("tr-TR", {
+    hour: "2-digit", minute: "2-digit", timeZone: timezone,
+  }).format(date);
+  return `${dayMonth} saat ${time}`;
+}
+
 // ─── Phone Normalization ─────────────────────────────────
 
 function normalizePhone(phone: string): string {
@@ -259,7 +272,7 @@ async function handleCreateBooking(
       title: result.title,
       start: result.start,
       end: result.end,
-      user_message: `Randevunuz oluşturuldu efendim. ${result.start} tarihinde sizi bekliyoruz.`,
+      user_message: `Randevunuz oluşturuldu efendim. ${formatDateTurkish(result.start, config.business.timezone)} tarihinde sizi bekliyoruz.`,
     };
   } catch (error) {
     if (error instanceof IntegrationError) {

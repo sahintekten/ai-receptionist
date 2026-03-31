@@ -158,11 +158,25 @@ router.post("/call-completed", verifyWebhookSignature, async (req, res) => {
     }
 
     // ─── Step 4: Opus async — fire and forget ─────────────
+    const transcript = call.transcript || undefined;
+    if (!transcript) {
+      logger.warn("No transcript in call.completed webhook", {
+        ...logCtx(ctx),
+        action: "post_call_transcript",
+        status: "missing",
+        has_transcript: !!call.transcript,
+        has_transcript_object: !!call.transcript_object,
+        transcript_type: typeof call.transcript,
+        transcript_object_length: call.transcript_object?.length ?? 0,
+        disconnection_reason: call.disconnection_reason,
+        duration_ms: durationSec ? durationSec * 1000 : undefined,
+      });
+    }
     void opusService.processPostCall(
       businessId,
       config,
       callId,
-      call.transcript,
+      transcript,
       {
         callerPhone,
         disposition: mapDisposition(call.disconnection_reason),
