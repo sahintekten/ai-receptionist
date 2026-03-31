@@ -29,7 +29,7 @@ function toolDef(name, description, parameters, options = {}) {
     description,
     url: WEBHOOK_URL,
     method: 'POST',
-    speak_during_execution: false,
+    speak_during_execution: true,
     speak_after_execution: true,
     execution_message_description: 'Bir saniye, hemen kontrol ediyorum efendim.',
     execution_message_type: 'static_text',
@@ -94,10 +94,7 @@ ACİL DURUMLAR:
 - Ameliyat sonrası komplikasyonlar (ateş, kanama, şişlik, enfeksiyon)
 - Mide balonu sonrası ciddi belirtiler (şiddetli ağrı, kusma, nefes darlığı)
 - Alerjik reaksiyon (şişlik, nefes darlığı, döküntü)
-- Hayati tehlike varsa 112'yi yönlendir
-
-KONUŞMA TARZI:
-Kısa cümleler kur. Aynı şeyi farklı kelimelerle tekrar etme. Hasta bir şey söylediğinde uzun açıklama yapma, kısa onayla ve devam et.`;
+- Hayati tehlike varsa 112'yi yönlendir`;
 
   // ── Flow-level tools (shared across nodes via tool_ids) ──
   const tools = [
@@ -196,17 +193,17 @@ Olası niyetler:
         {
           id: 'edge_to_booking',
           destination_node_id: 'node_booking',
-          transition_condition: { type: 'prompt', prompt: 'Arayan açıkça ve kesin olarak randevu almak istediğini belirtti. Belirsiz ifadelerde geçiş yapma.' },
+          transition_condition: { type: 'prompt', prompt: 'Arayan randevu almak, appointment, muayene zamanı ayarlamak istiyor.' },
         },
         {
           id: 'edge_to_cancellation',
           destination_node_id: 'node_cancellation',
-          transition_condition: { type: 'prompt', prompt: 'Arayan açıkça mevcut randevusunu iptal etmek istediğini belirtti.' },
+          transition_condition: { type: 'prompt', prompt: 'Arayan mevcut randevusunu iptal etmek istiyor.' },
         },
         {
           id: 'edge_to_rescheduling',
           destination_node_id: 'node_rescheduling',
-          transition_condition: { type: 'prompt', prompt: 'Arayan açıkça mevcut randevusunu başka bir tarihe almak istediğini belirtti.' },
+          transition_condition: { type: 'prompt', prompt: 'Arayan mevcut randevusunu başka bir tarihe/saate almak, ertelemek, öne çekmek istiyor.' },
         },
         {
           id: 'edge_to_inquiry',
@@ -216,7 +213,7 @@ Olası niyetler:
         {
           id: 'edge_to_message',
           destination_node_id: 'node_message_taking',
-          transition_condition: { type: 'prompt', prompt: 'Arayan açıkça mesaj bırakmak istediğini belirtti.' },
+          transition_condition: { type: 'prompt', prompt: 'Arayan mesaj bırakmak istiyor veya doktora/kliniğe bir ileti göndermek istiyor.' },
         },
         {
           id: 'edge_to_urgent',
@@ -226,7 +223,7 @@ Olası niyetler:
         {
           id: 'edge_to_callback',
           destination_node_id: 'node_callback_followup',
-          transition_condition: { type: 'prompt', prompt: 'Arayan açıkça daha önce söz verilen bir geri arama hakkında soruyor.' },
+          transition_condition: { type: 'prompt', prompt: 'Arayan daha önce söz verilen bir geri arama veya takip hakkında soruyor.' },
         },
       ],
     },
@@ -279,34 +276,24 @@ doctor_name olmadan tool çağırma.
 Uygun slot varsa hastaya sun ve onay al.
 Onay gelince create_booking ile randevuyu oluştur.
 Randevu detaylarını (tarih, saat, doktor) sözlü onayla.
-Fiyat sorulursa: 'Fiyatlarımız muayene sonrasında belirleniyor efendim, size bir konsültasyon randevusu ayarlayabilirim.'
-
-TELEFON DOĞRULAMA:
-Telefon numarasını aldıktan sonra MUTLAKA geri oku ve doğrulat: 'Numaranız 0532 xxx xx xx, doğru mu efendim?' Hasta düzeltirse güncelle.
-{{user_number}} gibi sistem değişkenlerini KULLANMA — her zaman hastadan sesli olarak numara iste.
-
-KAPANIŞ KURALI:
-İşlem tamamlandığında veya hasta başka bir şey istemediğinde 'Başka yardımcı olabileceğim bir konu var mı efendim?' de. Vedalaşma/kapanış YAPMA — kapanış sadece node_closing'in işi.
-
-TOOL ÇAĞRISI:
-Tool çağırmadan önce doğal bir geçiş yap: 'Hemen bakıyorum efendim' veya 'Kontrol ediyorum efendim'. Aynı cümleyi arka arkaya tekrarlama.`,
+Fiyat sorulursa: 'Fiyatlarımız muayene sonrasında belirleniyor efendim, size bir konsültasyon randevusu ayarlayabilirim.'`,
       },
       tool_ids: ['tool_check_availability', 'tool_create_booking'],
       edges: [
         {
           id: 'edge_booking_to_closing',
           destination_node_id: 'node_closing',
-          transition_condition: { type: 'prompt', prompt: 'Randevu başarıyla oluşturuldu ve detaylar hastaya söylendi, VEYA hasta açıkça randevu almaktan vazgeçtiğini belirtti. Geçiş yapmadan önce mevcut işlemi tamamla.' },
+          transition_condition: { type: 'prompt', prompt: 'Randevu başarıyla oluşturuldu ve hasta onayladı, veya hasta randevu almaktan vazgeçti.' },
         },
         {
           id: 'edge_booking_to_message',
           destination_node_id: 'node_message_taking',
-          transition_condition: { type: 'prompt', prompt: 'Uygun randevu bulunamadı ve hasta açıkça mesaj bırakmak istediğini belirtti.' },
+          transition_condition: { type: 'prompt', prompt: 'Uygun randevu bulunamadı ve hasta mesaj bırakmak istiyor.' },
         },
         {
           id: 'edge_booking_to_intent',
           destination_node_id: 'node_intent_detection',
-          transition_condition: { type: 'prompt', prompt: 'Hasta açıkça farklı bir konuya geçmek istediğini belirtti. İşlem ortasında geçiş yapma.' },
+          transition_condition: { type: 'prompt', prompt: 'Hasta farklı bir konuya geçmek istiyor (iptal, soru vb.).' },
         },
       ],
     },
@@ -321,38 +308,30 @@ Tool çağırmadan önce doğal bir geçiş yap: 'Hemen bakıyorum efendim' veya
         text: `Hastanın randevu iptal talebini yönet.
 
 ZORUNLU SIRA — bu sırayı kesinlikle takip et:
-1. Hastanın adını ve telefon numarasını al
+1. ÖNCE hastanın telefon numarasını al
 2. lookup_bookings tool'unu çağırarak mevcut randevuları getir
-3. Randevuları hastaya kısa özet olarak söyle: 'Perşembe saat 15:00 Prof. Çeliköz randevunuz var efendim'
-4. Tek randevu varsa direkt onay iste, birden fazlaysa seçtir
-5. Onay gelince cancel_booking ile iptal et
-6. İptal onayını kısa bildir
+3. Randevular listesini hastaya tarih ve doktor adıyla oku
+4. Hangi randevuyu iptal etmek istediğini sor
+5. Onay al: "X tarihli Y doktor randevunuzu iptal ediyorum, onaylıyor musunuz?"
+6. Onay gelince cancel_booking ile iptal et
+7. İptal onayını sözlü bildir
 
 ÖNEMLİ:
 - lookup_bookings çağrılmadan ASLA cancel_booking çağırma
-- İptal politikası: Kısıtlama yok, her zaman iptal edilebilir
-
-TELEFON DOĞRULAMA:
-Telefon numarasını aldıktan sonra MUTLAKA geri oku ve doğrulat: 'Numaranız 0532 xxx xx xx, doğru mu efendim?' Hasta düzeltirse güncelle.
-{{user_number}} gibi sistem değişkenlerini KULLANMA — her zaman hastadan sesli olarak numara iste.
-
-KAPANIŞ KURALI:
-İşlem tamamlandığında veya hasta başka bir şey istemediğinde 'Başka yardımcı olabileceğim bir konu var mı efendim?' de. Vedalaşma/kapanış YAPMA — kapanış sadece node_closing'in işi.
-
-TOOL ÇAĞRISI:
-Tool çağırmadan önce doğal bir geçiş yap: 'Hemen bakıyorum efendim' veya 'Kontrol ediyorum efendim'. Aynı cümleyi arka arkaya tekrarlama.`,
+- Birden fazla randevu varsa hastaya seçtir
+- İptal politikası: Kısıtlama yok, her zaman iptal edilebilir`,
       },
       tool_ids: ['tool_lookup_bookings', 'tool_cancel_booking'],
       edges: [
         {
           id: 'edge_cancel_to_closing',
           destination_node_id: 'node_closing',
-          transition_condition: { type: 'prompt', prompt: 'cancel_booking tool başarıyla çağrıldı ve iptal onaylandı, VEYA hasta açıkça iptalden vazgeçti. Geçiş yapmadan önce mevcut işlemi tamamla.' },
+          transition_condition: { type: 'prompt', prompt: 'Randevu başarıyla iptal edildi veya hasta iptalden vazgeçti.' },
         },
         {
           id: 'edge_cancel_to_intent',
           destination_node_id: 'node_intent_detection',
-          transition_condition: { type: 'prompt', prompt: 'Hasta açıkça farklı bir konuya geçmek istediğini belirtti.' },
+          transition_condition: { type: 'prompt', prompt: 'Hasta farklı bir konuya geçmek istiyor.' },
         },
       ],
     },
@@ -367,41 +346,30 @@ Tool çağırmadan önce doğal bir geçiş yap: 'Hemen bakıyorum efendim' veya
         text: `Hastanın randevu değişikliği talebini yönet.
 
 ZORUNLU SIRA:
-1. Hastanın adını ve telefon numarasını al (önceki node'lardan zaten biliniyorsa TEKRAR SORMA)
+1. Hastanın telefon numarasını al
 2. lookup_bookings ile mevcut randevuları getir
-3. Tek randevu varsa otomatik seç, onay iste: 'Perşembe saat 15:00 Prof. Çeliköz randevunuzu değiştirmek istiyorsunuz, doğru mu efendim?'
-   Birden fazlaysa kısa özet söyle ve seçtir — detaylı listeleme yapma
+3. Hangi randevuyu değiştirmek istediğini sor
 4. Yeni tercih edilen tarih/saati öğren
 5. check_availability ile yeni slot kontrol et
 6. Uygun slot varsa onay al
 7. ÖNCE create_booking ile yeni randevuyu oluştur
 8. Yeni randevu başarılıysa cancel_booking ile eski randevuyu iptal et
-9. Yeni randevu detaylarını kısa onayla
+9. Yeni randevu detaylarını sözlü onayla
 
 ÖNEMLİ: Reschedule = önce yeni oluştur, sonra eski iptal et. Yeni oluşturma başarısız olursa eski randevu korunur.
-Uygun slot yoksa alternatif öner veya mesaj bırakmayı teklif et.
-
-TELEFON DOĞRULAMA:
-Telefon numarasını aldıktan sonra MUTLAKA geri oku ve doğrulat: 'Numaranız 0532 xxx xx xx, doğru mu efendim?' Hasta düzeltirse güncelle.
-{{user_number}} gibi sistem değişkenlerini KULLANMA — her zaman hastadan sesli olarak numara iste.
-
-KAPANIŞ KURALI:
-İşlem tamamlandığında veya hasta başka bir şey istemediğinde 'Başka yardımcı olabileceğim bir konu var mı efendim?' de. Vedalaşma/kapanış YAPMA — kapanış sadece node_closing'in işi.
-
-TOOL ÇAĞRISI:
-Tool çağırmadan önce doğal bir geçiş yap: 'Hemen bakıyorum efendim' veya 'Kontrol ediyorum efendim'. Aynı cümleyi arka arkaya tekrarlama.`,
+Uygun slot yoksa alternatif öner veya mesaj bırakmayı teklif et.`,
       },
       tool_ids: ['tool_lookup_bookings', 'tool_check_availability', 'tool_create_booking', 'tool_cancel_booking'],
       edges: [
         {
           id: 'edge_reschedule_to_closing',
           destination_node_id: 'node_closing',
-          transition_condition: { type: 'prompt', prompt: 'Yeni randevu oluşturuldu ve eski iptal edildi, VEYA hasta açıkça vazgeçtiğini belirtti. Geçiş yapmadan önce mevcut işlemi tamamla.' },
+          transition_condition: { type: 'prompt', prompt: 'Randevu başarıyla değiştirildi veya hasta vazgeçti.' },
         },
         {
           id: 'edge_reschedule_to_intent',
           destination_node_id: 'node_intent_detection',
-          transition_condition: { type: 'prompt', prompt: 'Hasta açıkça farklı bir konuya geçmek istediğini belirtti.' },
+          transition_condition: { type: 'prompt', prompt: 'Hasta farklı bir konuya geçmek istiyor.' },
         },
       ],
     },
@@ -424,13 +392,7 @@ Yanıtlayabileceğin konular:
 
 FİYAT SORUSU: "Fiyatlarımız her hastaya özel olarak muayene sonrasında belirleniyor efendim. Size bir konsültasyon randevusu ayarlayabilirim, ister misiniz?"
 
-Bilgi Bankası'nda olmayan sorular için: "Bu konuda sizi en doğru şekilde bilgilendirebilmek için bir mesaj alayım, size dönüş yapalım efendim."
-
-KAPANIŞ KURALI:
-İşlem tamamlandığında veya hasta başka bir şey istemediğinde 'Başka yardımcı olabileceğim bir konu var mı efendim?' de. Vedalaşma/kapanış YAPMA — kapanış sadece node_closing'in işi.
-
-TOOL ÇAĞRISI:
-Tool çağırmadan önce doğal bir geçiş yap: 'Hemen bakıyorum efendim' veya 'Kontrol ediyorum efendim'. Aynı cümleyi arka arkaya tekrarlama.`,
+Bilgi Bankası'nda olmayan sorular için: "Bu konuda sizi en doğru şekilde bilgilendirebilmek için bir mesaj alayım, size dönüş yapalım efendim."`,
       },
       knowledge_base_ids: [kbId],
       tool_ids: ['tool_get_business_hours'],
@@ -438,17 +400,17 @@ Tool çağırmadan önce doğal bir geçiş yap: 'Hemen bakıyorum efendim' veya
         {
           id: 'edge_inquiry_to_closing',
           destination_node_id: 'node_closing',
-          transition_condition: { type: 'prompt', prompt: 'Hastanın sorusu yanıtlandı ve başka sorusu olmadığını belirtti.' },
+          transition_condition: { type: 'prompt', prompt: 'Hastanın sorusu yanıtlandı ve başka sorusu yok.' },
         },
         {
           id: 'edge_inquiry_to_booking',
           destination_node_id: 'node_booking',
-          transition_condition: { type: 'prompt', prompt: 'Hasta bilgi aldıktan sonra açıkça randevu almak istediğini belirtti.' },
+          transition_condition: { type: 'prompt', prompt: 'Hasta bilgi aldıktan sonra randevu almak istiyor.' },
         },
         {
           id: 'edge_inquiry_to_intent',
           destination_node_id: 'node_intent_detection',
-          transition_condition: { type: 'prompt', prompt: 'Hasta açıkça farklı bir konuya geçmek istediğini belirtti.' },
+          transition_condition: { type: 'prompt', prompt: 'Hasta farklı bir konuya geçmek istiyor.' },
         },
       ],
     },
@@ -472,17 +434,7 @@ ZORUNLU ADIMLAR (hepsini tamamlamadan kapanışa GEÇİLMEMELİ):
 ZORUNLU KURAL:
 - take_message tool'u ÇAĞRILMADAN kapanışa GEÇİLMEMELİ
 - İsim ve telefon numarası ALINMADAN take_message ÇAĞRILMAMALI
-- Tool çağrısı başarısız olursa hastaya bildir ve tekrar dene
-
-TELEFON DOĞRULAMA:
-Telefon numarasını aldıktan sonra MUTLAKA geri oku ve doğrulat: 'Numaranız 0532 xxx xx xx, doğru mu efendim?' Hasta düzeltirse güncelle.
-{{user_number}} gibi sistem değişkenlerini KULLANMA — her zaman hastadan sesli olarak numara iste.
-
-KAPANIŞ KURALI:
-İşlem tamamlandığında veya hasta başka bir şey istemediğinde 'Başka yardımcı olabileceğim bir konu var mı efendim?' de. Vedalaşma/kapanış YAPMA — kapanış sadece node_closing'in işi.
-
-TOOL ÇAĞRISI:
-Tool çağırmadan önce doğal bir geçiş yap: 'Hemen bakıyorum efendim' veya 'Kontrol ediyorum efendim'. Aynı cümleyi arka arkaya tekrarlama.`,
+- Tool çağrısı başarısız olursa hastaya bildir ve tekrar dene`,
       },
       tool_ids: ['tool_take_message'],
       edges: [
@@ -529,17 +481,7 @@ YAPMAMASI GEREKENLER:
 - 'Başka belirtiniz var mı?' gibi ek sorular sorma
 - 112 yönlendirmesi yapma (SADECE nefes alamıyor veya bilinç kaybı varsa)
 - Uzun konuşma — kısa ve net ol
-- Yapay veya resmi konuşma — samimi ve doğal ol
-
-TELEFON DOĞRULAMA:
-Telefon numarasını aldıktan sonra MUTLAKA geri oku ve doğrulat: 'Numaranız 0532 xxx xx xx, doğru mu efendim?' Hasta düzeltirse güncelle.
-{{user_number}} gibi sistem değişkenlerini KULLANMA — her zaman hastadan sesli olarak numara iste.
-
-KAPANIŞ KURALI:
-İşlem tamamlandığında veya hasta başka bir şey istemediğinde 'Başka yardımcı olabileceğim bir konu var mı efendim?' de. Vedalaşma/kapanış YAPMA — kapanış sadece node_closing'in işi.
-
-TOOL ÇAĞRISI:
-Tool çağırmadan önce doğal bir geçiş yap: 'Hemen bakıyorum efendim' veya 'Kontrol ediyorum efendim'. Aynı cümleyi arka arkaya tekrarlama.`,
+- Yapay veya resmi konuşma — samimi ve doğal ol`,
       },
       tool_ids: ['tool_take_message', 'tool_get_emergency_info'],
       edges: [
@@ -575,16 +517,7 @@ ADIM 3 — BİLDİR:
 ZORUNLU KURALLAR:
 - take_message tool'u ÇAĞRILMADAN kapanışa GEÇİLMEMELİ
 - İsim ve telefon numarası ALINMADAN take_message ÇAĞRILMAMALI
-
-TELEFON DOĞRULAMA:
-Telefon numarasını aldıktan sonra MUTLAKA geri oku ve doğrulat: 'Numaranız 0532 xxx xx xx, doğru mu efendim?' Hasta düzeltirse güncelle.
-{{user_number}} gibi sistem değişkenlerini KULLANMA — her zaman hastadan sesli olarak numara iste.
-
-KAPANIŞ KURALI:
-İşlem tamamlandığında veya hasta başka bir şey istemediğinde 'Başka yardımcı olabileceğim bir konu var mı efendim?' de. Vedalaşma/kapanış YAPMA — kapanış sadece node_closing'in işi.
-
-TOOL ÇAĞRISI:
-Tool çağırmadan önce doğal bir geçiş yap: 'Hemen bakıyorum efendim' veya 'Kontrol ediyorum efendim'. Aynı cümleyi arka arkaya tekrarlama.`,
+- {{user_number}} template variable'ını KULLANMA — her zaman hastadan sor`,
       },
       tool_ids: ['tool_get_caller_memory', 'tool_take_message'],
       edges: [
@@ -596,7 +529,7 @@ Tool çağırmadan önce doğal bir geçiş yap: 'Hemen bakıyorum efendim' veya
         {
           id: 'edge_callback_to_intent',
           destination_node_id: 'node_intent_detection',
-          transition_condition: { type: 'prompt', prompt: 'Hasta açıkça farklı bir konuya geçmek istediğini belirtti.' },
+          transition_condition: { type: 'prompt', prompt: 'Hasta farklı bir konuya geçmek istiyor.' },
         },
       ],
     },
@@ -625,7 +558,7 @@ Tool çağırmadan önce doğal bir geçiş yap: 'Hemen bakıyorum efendim' veya
         {
           id: 'edge_closing_to_intent',
           destination_node_id: 'node_intent_detection',
-          transition_condition: { type: 'prompt', prompt: 'Hasta açıkça başka bir konuda yardım istediğini belirtti.' },
+          transition_condition: { type: 'prompt', prompt: 'Hasta başka bir konuda yardım istiyor.' },
         },
       ],
     },
