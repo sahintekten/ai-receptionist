@@ -34,40 +34,46 @@ export async function checkAvailabilityForBusiness(
   config: ResolvedBusinessConfig,
   dateRange: { start: string; end: string },
   serviceType: string | undefined,
-  ctx: RequestContext
+  ctx: RequestContext,
+  doctorName?: string
 ): Promise<AvailabilityResult> {
   const calcomConfig = getCalcomConfig(config);
   const timezone = config.business.timezone;
 
-  // Find the right event type — match by service_type, name, or doctor_name
+  // Find the right event type — priority: doctorName > serviceType > single default
   let eventType: typeof calcomConfig.event_types[number] | undefined;
-  if (serviceType) {
+
+  // 1. Doctor name match (highest priority)
+  if (doctorName) {
+    const search = doctorName.toLowerCase();
+    eventType = calcomConfig.event_types.find(
+      (et) => et.doctor_name?.toLowerCase().includes(search)
+    );
+  }
+
+  // 2. Service type match
+  if (!eventType && serviceType) {
     const search = serviceType.toLowerCase();
-    // 1. Exact service_type match
+    // 2a. Exact service_type match
     eventType = calcomConfig.event_types.find(
       (et) => et.service_type.toLowerCase() === search
     );
-    // 2. Partial service_type or name match
+    // 2b. Partial service_type or name match
     if (!eventType) {
       eventType = calcomConfig.event_types.find(
         (et) => et.service_type.toLowerCase().includes(search)
           || et.name.toLowerCase().includes(search)
       );
     }
-    // 3. Doctor name match
-    if (!eventType) {
-      eventType = calcomConfig.event_types.find(
-        (et) => et.doctor_name?.toLowerCase().includes(search)
-      );
-    }
   }
-  // No match and no serviceType specified → use first as default
-  if (!eventType && !serviceType) {
+
+  // 3. No search terms and single event type → use it as default
+  if (!eventType && !doctorName && !serviceType && calcomConfig.event_types.length === 1) {
     eventType = calcomConfig.event_types[0];
   }
 
   if (!eventType) {
-    throw new IntegrationError("Cal.com", "No event types configured for this business");
+    throw new IntegrationError("Cal.com", "Uygun randevu türü bulunamadı");
   }
 
   logger.info("Checking availability", {
@@ -120,7 +126,8 @@ export async function createBookingForBusiness(
   slot: string,
   eventTypeId: number,
   callerName: string,
-  ctx: RequestContext
+  ctx: RequestContext,
+  requestedService?: string
 ): Promise<BookingResult> {
   const timezone = config.business.timezone;
 
@@ -147,7 +154,8 @@ export async function createBookingForBusiness(
     attendeeEmail,
     callerPhone,
     timezone,
-    logContext(ctx)
+    logContext(ctx),
+    requestedService
   );
 
   logger.info("Booking created", {

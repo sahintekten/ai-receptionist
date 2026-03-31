@@ -177,7 +177,8 @@ export async function createBooking(
   attendeeEmail: string,
   attendeePhone: string,
   timeZone: string = "Europe/Istanbul",
-  context?: { call_id?: string; business_id?: string }
+  context?: { call_id?: string; business_id?: string },
+  requestedService?: string
 ): Promise<CalcomBooking> {
   // NO retry for booking create — double booking risk
   const requestBody = {
@@ -191,6 +192,7 @@ export async function createBooking(
     metadata: {
       source: "ai-receptionist",
       phone: attendeePhone,
+      requested_service: requestedService || "belirtilmedi",
     },
   };
 

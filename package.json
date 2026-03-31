@@ -11,7 +11,7 @@
     "migrate": "prisma migrate dev",
     "migrate:prod": "prisma migrate deploy",
     "validate": "tsx scripts/validate.ts",
-    "seed": "tsx scripts/seed.ts"
+    "seed": "tsx scripts/seed-business.ts"
   },
   "keywords": [],
   "author": "",

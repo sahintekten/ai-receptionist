@@ -74,7 +74,8 @@ async function handleCheckAvailability(
 
   // Normalize: accept both camelCase and snake_case
   const dateRange = parsed.dateRange || parsed.date_range || parsed.preferred_date;
-  const serviceType = parsed.serviceType || parsed.service_type || parsed.doctor_name;
+  const serviceType = parsed.serviceType || parsed.service_type;
+  const doctorName = parsed.doctor_name;
 
   // Default: next 3 days from now
   const now = new Date();
@@ -96,7 +97,8 @@ async function handleCheckAvailability(
     config,
     { start: startDate, end: endDate },
     serviceType,
-    ctx
+    ctx,
+    doctorName
   );
 
   // Flatten slots into a simple array for the agent
@@ -152,35 +154,48 @@ async function handleCreateBooking(
     };
   }
 
-  // Event type: direct ID or resolve from service_type/doctor_name
+  // Event type: direct ID or resolve via doctorName > service_type
+  const doctorName = parsed.doctor_name;
+  const serviceType = parsed.service_type;
   let eventTypeId: number | undefined;
+
   if (parsed.eventTypeId) {
     eventTypeId = typeof parsed.eventTypeId === "string"
       ? parseInt(parsed.eventTypeId, 10)
       : parsed.eventTypeId;
-  } else if (parsed.service_type || parsed.doctor_name) {
+  } else {
     const calcomIntegration = config.integrations.find((i) => i.type === "calcom");
     if (calcomIntegration) {
       const calcomConfig = calcomIntegration.config as { event_types?: Array<{ id: number; name: string; service_type: string; doctor_name?: string }> };
-      const searchTerm = (parsed.service_type || parsed.doctor_name || "").toLowerCase();
-      // 1. Exact service_type match
-      let match = calcomConfig.event_types?.find(
-        (et) => et.service_type.toLowerCase() === searchTerm
-      );
-      // 2. Partial service_type or name match
-      if (!match) {
-        match = calcomConfig.event_types?.find(
-          (et) => et.service_type.toLowerCase().includes(searchTerm)
-            || et.name.toLowerCase().includes(searchTerm)
+
+      // 1. Doctor name match (highest priority)
+      if (doctorName) {
+        const search = doctorName.toLowerCase();
+        const match = calcomConfig.event_types?.find(
+          (et) => et.doctor_name?.toLowerCase().includes(search)
         );
+        if (match) eventTypeId = match.id;
       }
-      // 3. Doctor name match
-      if (!match) {
-        match = calcomConfig.event_types?.find(
-          (et) => et.doctor_name?.toLowerCase().includes(searchTerm)
+
+      // 2. Service type match
+      if (!eventTypeId && serviceType) {
+        const search = serviceType.toLowerCase();
+        let match = calcomConfig.event_types?.find(
+          (et) => et.service_type.toLowerCase() === search
         );
+        if (!match) {
+          match = calcomConfig.event_types?.find(
+            (et) => et.service_type.toLowerCase().includes(search)
+              || et.name.toLowerCase().includes(search)
+          );
+        }
+        if (match) eventTypeId = match.id;
       }
-      if (match) eventTypeId = match.id;
+
+      // 3. Single event type and no search terms → default
+      if (!eventTypeId && !doctorName && !serviceType && calcomConfig.event_types?.length === 1) {
+        eventTypeId = calcomConfig.event_types[0].id;
+      }
     }
   }
 
@@ -206,6 +221,7 @@ async function handleCreateBooking(
   });
 
   try {
+    const requestedService = serviceType || doctorName;
     const result = await bookingService.createBookingForBusiness(
       ctx.businessId,
       config,
@@ -213,7 +229,8 @@ async function handleCreateBooking(
       slot,
       eventTypeId,
       callerName,
-      ctx
+      ctx,
+      requestedService
     );
 
     // Update memory — never block the call
