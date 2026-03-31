@@ -7,21 +7,10 @@ const FLOW_ID = 'conversation_flow_710161ccad8e';
 async function main() {
   const flow = await client.conversationFlow.retrieve(FLOW_ID);
 
-  // 1. Update global prompt — add dynamic date/time variables at the top
-  const dateBlock = `TARİH VE SAAT BİLGİSİ:
-- Şu anki tarih ve saat: {{current_time_Europe/Istanbul}}
-- 14 günlük takvim: {{current_calendar_Europe/Istanbul}}
-- Arayanın numarası: {{user_number}}
-- Çağrı yönü: {{direction}}
+  // 1. Keep global prompt as-is (managed via setup-retell.mjs)
+  const updatedGlobalPrompt = flow.global_prompt;
 
-`;
-
-  let updatedGlobalPrompt = flow.global_prompt;
-  if (!updatedGlobalPrompt.includes('current_time_Europe/Istanbul')) {
-    updatedGlobalPrompt = dateBlock + updatedGlobalPrompt;
-  }
-
-  // 2. Update booking node prompt — enforce name+phone collection before create_booking
+  // 2. Update node prompts
   const updatedNodes = flow.nodes.map(node => {
     if (node.id === 'node_intent_detection') {
       const existingText = node.instruction?.text || '';
