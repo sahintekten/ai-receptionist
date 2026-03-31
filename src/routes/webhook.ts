@@ -42,6 +42,19 @@ router.post("/call-completed", verifyWebhookSignature, async (req, res) => {
     return;
   }
 
+  // Only process call_ended / call_analyzed events
+  const event = parsed.data.event;
+  if (event !== "call_ended" && event !== "call_analyzed") {
+    logger.info("Webhook event ignored (not call_ended)", {
+      action: "webhook_call_completed",
+      status: "ignored",
+      event,
+      call_id: parsed.data.call?.call_id,
+    });
+    res.status(200).json({ status: "ignored", event });
+    return;
+  }
+
   const { call } = parsed.data;
   const callId = call.call_id;
   const agentId = call.agent_id;
