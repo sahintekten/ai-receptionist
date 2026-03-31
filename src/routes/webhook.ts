@@ -6,6 +6,7 @@ import { RetellCallCompletedSchema } from "../lib/validation";
 import { logger } from "../lib/logger";
 import { callPhoneCache } from "./retell";
 import * as callLogService from "../services/callLog";
+import * as callLogRepo from "../repositories/callLog";
 import * as memoryService from "../services/memory";
 import * as crmService from "../services/crm";
 import * as opusService from "../services/opus";
@@ -125,12 +126,17 @@ router.post("/call-completed", verifyWebhookSignature, async (req, res) => {
     }
 
     // ─── Step 2: Update caller memory ────────────────────
+    // Resolve call_logs UUID for FK reference (caller_memory.last_call_id → call_logs.id)
+    const callLog = await callLogRepo.getByCallId(callId);
+    const callLogId = callLog?.id;
+
     logger.info("Post-call phone resolution", {
       ...logCtx(ctx),
       action: "post_call_phone",
       caller_phone: callerPhone,
       from_number: call.from_number || null,
       phone_source: call.from_number ? "from_number" : (callerPhone !== "unknown" ? "cache" : "unknown"),
+      call_log_id: callLogId || null,
     });
 
     if (callerPhone && callerPhone !== "unknown") {
@@ -138,7 +144,7 @@ router.post("/call-completed", verifyWebhookSignature, async (req, res) => {
         await memoryService.updateMemoryAfterCall(
           businessId,
           callerPhone,
-          { lastCallId: callId, lastCallAt: new Date() },
+          { ...(callLogId ? { lastCallId: callLogId } : {}), lastCallAt: new Date() },
           ctx
         );
       } catch (error) {
@@ -212,6 +218,7 @@ router.post("/call-completed", verifyWebhookSignature, async (req, res) => {
       transcript,
       {
         callerPhone,
+        callLogId,
         disposition: mapDisposition(call.disconnection_reason),
         bookingId: undefined,
         durationSeconds: durationSec,

@@ -18,6 +18,7 @@ export async function processPostCall(
   transcript: string | undefined,
   callMetadata: {
     callerPhone: string;
+    callLogId?: string;
     disposition: string;
     detectedIntent?: string;
     bookingId?: string;
@@ -133,7 +134,7 @@ export async function processPostCall(
           businessId,
           callMetadata.callerPhone,
           {
-            lastCallId: callId,
+            ...(callMetadata.callLogId ? { lastCallId: callMetadata.callLogId } : {}),
             recentMessageSummary: result.summary,
           },
           ctx
