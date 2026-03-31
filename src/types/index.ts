@@ -11,6 +11,7 @@ export interface CalcomEventType {
   name: string;
   duration_minutes: number;
   service_type: string;
+  doctor_name?: string;
 }
 
 export interface CalcomConfig {

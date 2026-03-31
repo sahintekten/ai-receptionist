@@ -161,29 +161,33 @@ async function handleCreateBooking(
   } else if (parsed.service_type || parsed.doctor_name) {
     const calcomIntegration = config.integrations.find((i) => i.type === "calcom");
     if (calcomIntegration) {
-      const calcomConfig = calcomIntegration.config as { event_types?: Array<{ id: number; name: string; service_type: string }> };
+      const calcomConfig = calcomIntegration.config as { event_types?: Array<{ id: number; name: string; service_type: string; doctor_name?: string }> };
       const searchTerm = (parsed.service_type || parsed.doctor_name || "").toLowerCase();
-      const match = calcomConfig.event_types?.find(
-        (et) => et.service_type.toLowerCase().includes(searchTerm)
-          || et.name.toLowerCase().includes(searchTerm)
+      // 1. Exact service_type match
+      let match = calcomConfig.event_types?.find(
+        (et) => et.service_type.toLowerCase() === searchTerm
       );
+      // 2. Partial service_type or name match
+      if (!match) {
+        match = calcomConfig.event_types?.find(
+          (et) => et.service_type.toLowerCase().includes(searchTerm)
+            || et.name.toLowerCase().includes(searchTerm)
+        );
+      }
+      // 3. Doctor name match
+      if (!match) {
+        match = calcomConfig.event_types?.find(
+          (et) => et.doctor_name?.toLowerCase().includes(searchTerm)
+        );
+      }
       if (match) eventTypeId = match.id;
-    }
-  }
-
-  // Fallback: use first event type
-  if (!eventTypeId) {
-    const calcomIntegration = config.integrations.find((i) => i.type === "calcom");
-    if (calcomIntegration) {
-      const calcomConfig = calcomIntegration.config as { event_types?: Array<{ id: number }> };
-      eventTypeId = calcomConfig.event_types?.[0]?.id;
     }
   }
 
   if (!eventTypeId) {
     return {
       result: "error",
-      user_message: "Randevu türü belirlenemedi efendim. Hangi işlem için randevu almak istiyorsunuz?",
+      user_message: "Hangi işlem için randevu almak istiyorsunuz? Obezite veya estetik cerrahi seçeneklerimiz mevcut.",
     };
   }
 
@@ -235,19 +239,26 @@ async function handleCreateBooking(
       user_message: `Randevunuz oluşturuldu efendim. ${result.start} tarihinde sizi bekliyoruz.`,
     };
   } catch (error) {
-    if (error instanceof IntegrationError && error.context?.httpStatus === 409) {
-      // Booking conflict — slot taken, re-query availability
-      logger.warn("Booking conflict, re-querying availability", {
-        call_id: ctx.callId,
-        business_id: ctx.businessId,
-        action: "create_booking",
-        status: "conflict",
-      });
+    if (error instanceof IntegrationError) {
+      const httpStatus = error.context?.httpStatus as number | undefined;
+      const errorMsg = (error.context?.responseBody as string || error.message || "").toLowerCase();
+      const isConflict = httpStatus === 409
+        || (httpStatus === 400 && (errorMsg.includes("already has booking") || errorMsg.includes("not available")));
 
-      return {
-        result: "conflict",
-        user_message: "Bu randevu slotu az önce doldu efendim. Müsait başka slotlara bakayım hemen.",
-      };
+      if (isConflict) {
+        logger.warn("Booking conflict, re-querying availability", {
+          call_id: ctx.callId,
+          business_id: ctx.businessId,
+          action: "create_booking",
+          status: "conflict",
+          http_status: httpStatus,
+        });
+
+        return {
+          result: "conflict",
+          user_message: "Bu randevu slotu az önce doldu efendim. Müsait başka slotlara bakayım hemen.",
+        };
+      }
     }
     throw error;
   }

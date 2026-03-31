@@ -39,14 +39,31 @@ export async function checkAvailabilityForBusiness(
   const calcomConfig = getCalcomConfig(config);
   const timezone = config.business.timezone;
 
-  // Find the right event type — match by service_type or use first if none specified
-  let eventType = calcomConfig.event_types[0];
+  // Find the right event type — match by service_type, name, or doctor_name
+  let eventType: typeof calcomConfig.event_types[number] | undefined;
   if (serviceType) {
-    const match = calcomConfig.event_types.find(
-      (et) => et.service_type.toLowerCase() === serviceType.toLowerCase()
-        || et.name.toLowerCase().includes(serviceType.toLowerCase())
+    const search = serviceType.toLowerCase();
+    // 1. Exact service_type match
+    eventType = calcomConfig.event_types.find(
+      (et) => et.service_type.toLowerCase() === search
     );
-    if (match) eventType = match;
+    // 2. Partial service_type or name match
+    if (!eventType) {
+      eventType = calcomConfig.event_types.find(
+        (et) => et.service_type.toLowerCase().includes(search)
+          || et.name.toLowerCase().includes(search)
+      );
+    }
+    // 3. Doctor name match
+    if (!eventType) {
+      eventType = calcomConfig.event_types.find(
+        (et) => et.doctor_name?.toLowerCase().includes(search)
+      );
+    }
+  }
+  // No match and no serviceType specified → use first as default
+  if (!eventType && !serviceType) {
+    eventType = calcomConfig.event_types[0];
   }
 
   if (!eventType) {

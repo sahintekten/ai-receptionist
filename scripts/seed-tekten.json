@@ -44,8 +44,8 @@
   "integrations": {
     "calcom": {
       "event_types": [
-        { "id": 5194133, "name": "Obezite Ön Görüşme", "duration_minutes": 30, "service_type": "obezite" },
-        { "id": 5194142, "name": "Estetik Ön Görüşme", "duration_minutes": 30, "service_type": "estetik" }
+        { "id": 5194133, "name": "Obezite Ön Görüşme", "duration_minutes": 30, "service_type": "obezite", "doctor_name": "Güneş Tekten" },
+        { "id": 5194142, "name": "Estetik Ön Görüşme", "duration_minutes": 30, "service_type": "estetik", "doctor_name": "Bahattin Çeliköz" }
       ],
       "availability_mode": "cal_only"
     },
