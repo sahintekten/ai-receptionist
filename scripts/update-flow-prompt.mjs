@@ -28,26 +28,30 @@ KONUŞMA TARZI:
 - İşlem bittiğinde vedalaşma yapma, sadece "Başka bir isteğiniz var mı?" de
 
 DOKTORLAR:
-- Uzm. Dr. Güneş Tekten — Obezite ve Metabolik Cerrahi
-- Prof. Dr. Bahattin Çeliköz — Plastik ve Estetik Cerrahi`;
+- Uzman Doktor Güneş Tekten — Obezite ve Metabolik Cerrahi
+- Profesör Doktor Bahattin Çeliköz — Plastik ve Estetik Cerrahi`;
 
   // 2. Update node prompts
   const updatedNodes = flow.nodes.map(node => {
     if (node.id === 'node_intent_detection') {
-      const existingText = node.instruction?.text || '';
-      const updatedText = existingText.includes('112 yönlendirmesi YAPMA')
-        ? existingText
-        : existingText + `\n\nÖNEMLİ: Acil durum algıladığında hastaya tavsiyelerde BULUNMA, 112 yönlendirmesi YAPMA. Sadece acil durum node'una yönlendir. Acil durum yönetimi o node'un işi.`;
-      const updatedEdges = (node.edges || []).map(edge => {
-        if (edge.id === 'edge_to_urgent') {
-          return {
-            ...edge,
-            transition_condition: { type: 'prompt', prompt: 'Arayan acil bir durum bildiriyor. Hastaya yorum yapma, tavsiye verme, açıklama yapma — SADECE acil durum node\'una yönlendir.' },
-          };
-        }
-        return edge;
-      });
-      return { ...node, instruction: { ...node.instruction, text: updatedText }, edges: updatedEdges };
+      return {
+        ...node,
+        instruction: {
+          ...node.instruction,
+          text: `Arayanın talebini analiz et ve doğru node'a yönlendir.
+
+Niyetler:
+- Randevu alma
+- Randevu iptali
+- Randevu değişikliği
+- Genel soru / bilgi
+- Mesaj bırakma
+- Acil durum
+- Geri arama / takip
+
+Acil durum algıladığında hastaya tavsiye verme, 112 yönlendirmesi yapma — sadece acil durum node'una yönlendir.`,
+        },
+      };
     }
     if (node.id === 'node_urgent_escalation') {
       return {
@@ -149,7 +153,8 @@ KURALLAR:
 - doctor_name zorunlu — tool çağrısında mutlaka gönder
 - İsim ve numara alınmadan create_booking çağırma
 - {{user_number}} kullanma — numarayı hastadan sesli al
-- Slot yoksa alternatif tarih öner veya mesaj almayı teklif et`,
+- Slot yoksa alternatif tarih öner veya mesaj almayı teklif et
+- Slot'ları tek tek sayma — zaman aralığı olarak söyle: "Sabah 9 ile 11:30 arası müsait efendim" gibi`,
         },
       };
     }
