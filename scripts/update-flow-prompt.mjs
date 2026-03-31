@@ -4,7 +4,7 @@ import Retell from 'retell-sdk';
 const client = new Retell({ apiKey: process.env.RETELL_API_KEY });
 const FLOW_ID = 'conversation_flow_710161ccad8e';
 
-// ─── Prompts (synced with setup-retell.mjs) ───
+// ─── Global Prompt (synced with setup-retell.mjs) ───
 
 const GLOBAL_PROMPT = `TARİH VE SAAT BİLGİSİ:
 - Şu anki tarih ve saat: {{current_time_Europe/Istanbul}}
@@ -25,12 +25,15 @@ KONUŞMA TARZI:
 - Fiyat sorulursa: "Fiyatlarımız muayene sonrasında belirleniyor efendim"
 - İşlem bittiğinde vedalaşma yapma, sadece "Başka bir isteğiniz var mı?" de
 - Doktor isimlerini kısaltma kullanmadan oku: Profesör Doktor, Uzman Doktor
+- Saatleri doğal söyle: 09:00 yerine 'sabah dokuz', 14:30 yerine 'iki buçuk', 18:00 yerine 'akşam altı' gibi
 
 DOKTORLAR:
 - Uzman Doktor Güneş Tekten — Obezite ve Metabolik Cerrahi
 - Profesör Doktor Bahattin Çeliköz — Plastik ve Estetik Cerrahi`;
 
-const NODE_PROMPTS = {
+// ─── Node Prompts (synced with setup-retell.mjs) ───
+
+const PROMPTS = {
   node_intent_detection: `Arayanın talebini analiz et ve doğru node'a yönlendir. Doktor sorma, işlem sorma — sadece niyeti belirle.
 
 Niyetler:
@@ -140,6 +143,12 @@ KURALLAR:
 - take_message çağrılmadan kapanışa geçme
 - Kayıtlarda not bulunamazsa: "Dilerseniz tekrar bir geri arama talebi oluşturayım"
 - {{user_number}} kullanma`,
+
+  node_closing: `Görüşmeyi nazikçe kapat.
+
+"Başka yardımcı olabileceğim bir konu var mı efendim?"
+- Evet → intent_detection'a yönlendir
+- Hayır → "İyi günler dilerim efendim, sağlıklı günler." de ve CÜMLE BİTTİKTEN SONRA end_call çağır. end_call'ın execution_message'ını boş bırak.`,
 };
 
 // ─── Main ───
@@ -147,18 +156,11 @@ KURALLAR:
 async function main() {
   const flow = await client.conversationFlow.retrieve(FLOW_ID);
 
-  // Update nodes — only touch nodes with prompts defined above
   const updatedNodes = flow.nodes.map(node => {
-    if (NODE_PROMPTS[node.id]) {
-      return {
-        ...node,
-        instruction: {
-          type: 'prompt',
-          text: NODE_PROMPTS[node.id],
-        },
-      };
+    if (PROMPTS[node.id]) {
+      return { ...node, instruction: { type: 'prompt', text: PROMPTS[node.id] } };
     }
-    return node;
+    return node; // node_greeting stays as-is (static_text)
   });
 
   await client.conversationFlow.update(FLOW_ID, {
@@ -166,7 +168,7 @@ async function main() {
     nodes: updatedNodes,
   });
 
-  const updated = Object.keys(NODE_PROMPTS);
+  const updated = Object.keys(PROMPTS);
   console.log(`Flow updated: global prompt + ${updated.length} nodes`);
   updated.forEach(id => console.log(`  - ${id}`));
 }
