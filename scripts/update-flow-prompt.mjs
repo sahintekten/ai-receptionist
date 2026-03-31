@@ -148,7 +148,7 @@ KURALLAR:
 
 "Başka yardımcı olabileceğim bir konu var mı efendim?"
 - Evet → intent_detection'a yönlendir
-- Hayır → "İyi günler dilerim efendim, sağlıklı günler." de ve CÜMLE BİTTİKTEN SONRA end_call çağır. end_call'ın execution_message'ını boş bırak.`,
+- Hayır → end_call çağır, execution_message: "İyi günler dilerim efendim, sağlıklı günler. Görüşmek üzere!"`,
 };
 
 // ─── Main ───
