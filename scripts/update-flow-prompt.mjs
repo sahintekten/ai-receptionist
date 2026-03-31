@@ -23,6 +23,27 @@ async function main() {
 
   // 2. Update booking node prompt — enforce name+phone collection before create_booking
   const updatedNodes = flow.nodes.map(node => {
+    if (node.id === 'node_message_taking') {
+      return {
+        ...node,
+        instruction: {
+          type: 'prompt',
+          text: `Arayanın mesajını al ve kaydet.
+
+ZORUNLU ADIMLAR (hepsini tamamlamadan kapanışa GEÇİLMEMELİ):
+1. Arayanın adı ve telefon numarasını al (zaten varsa tekrar sorma)
+2. Mesajını dinle
+3. Mesajı özetle ve geri oku: 'Mesajınızı tekrar edeyim efendim: [özet]. Doğru mu?'
+4. Onay gelince take_message tool'unu MUTLAKA çağır — message_type: 'message' ile
+5. Tool başarılı döndükten sonra 'Mesajınızı ilettim efendim' de
+
+ZORUNLU KURAL:
+- take_message tool'u ÇAĞRILMADAN kapanışa GEÇİLMEMELİ
+- İsim ve telefon numarası ALINMADAN take_message ÇAĞRILMAMALI
+- Tool çağrısı başarısız olursa hastaya bildir ve tekrar dene`,
+        },
+      };
+    }
     if (node.id === 'node_booking') {
       return {
         ...node,

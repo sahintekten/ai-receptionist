@@ -422,19 +422,24 @@ Bilgi Bankası'nda olmayan sorular için: "Bu konuda sizi en doğru şekilde bil
         type: 'prompt',
         text: `Arayanın mesajını al ve kaydet.
 
-Adımlar:
+ZORUNLU ADIMLAR (hepsini tamamlamadan kapanışa GEÇİLMEMELİ):
 1. Arayanın adı ve telefon numarasını al (zaten varsa tekrar sorma)
 2. Mesajını dinle
-3. Mesajı özetle ve geri oku: "Mesajınızı tekrar edeyim efendim: [özet]. Doğru mu?"
-4. Onay gelince take_message tool'unu message_type: "message" ile çağır
-5. "Mesajınızı ilettim efendim, en kısa sürede size dönüş yapılacaktır" de`,
+3. Mesajı özetle ve geri oku: 'Mesajınızı tekrar edeyim efendim: [özet]. Doğru mu?'
+4. Onay gelince take_message tool'unu MUTLAKA çağır — message_type: 'message' ile
+5. Tool başarılı döndükten sonra 'Mesajınızı ilettim efendim' de
+
+ZORUNLU KURAL:
+- take_message tool'u ÇAĞRILMADAN kapanışa GEÇİLMEMELİ
+- İsim ve telefon numarası ALINMADAN take_message ÇAĞRILMAMALI
+- Tool çağrısı başarısız olursa hastaya bildir ve tekrar dene`,
       },
       tool_ids: ['tool_take_message'],
       edges: [
         {
           id: 'edge_message_to_closing',
           destination_node_id: 'node_closing',
-          transition_condition: { type: 'prompt', prompt: 'Mesaj başarıyla kaydedildi.' },
+          transition_condition: { type: 'prompt', prompt: 'take_message tool başarıyla çağrıldı ve mesaj kaydedildi.' },
         },
         {
           id: 'edge_message_to_intent',

@@ -50,14 +50,14 @@ function cacheCallerPhone(callId: string, phone: string, name?: string): void {
 
 // ─── In-memory lookup tracking (safety net for cancel/reschedule) ────
 
-const lookupTracker = new Map<string, boolean>();
+const lookupTracker = new Map<string, { verified: boolean; phone: string }>();
 
-function recordLookup(callId: string): void {
-  lookupTracker.set(callId, true);
+function recordLookup(callId: string, phone: string): void {
+  lookupTracker.set(callId, { verified: true, phone });
 }
 
 function hasLookup(callId: string): boolean {
-  return lookupTracker.get(callId) === true;
+  return lookupTracker.get(callId)?.verified === true;
 }
 
 // Clean up old entries periodically (prevent memory leak)
@@ -341,7 +341,12 @@ async function handleCancelBooking(
 
   const parsed = CancelBookingArgsSchema.parse(args);
   const bookingId = parsed.bookingId || parsed.booking_id;
-  const phone = normalizePhone(parsed.callerPhone || parsed.caller_phone || ctx.callerPhone);
+  const lookupData = lookupTracker.get(ctx.callId);
+  let phone = parsed.callerPhone || parsed.caller_phone || ctx.callerPhone;
+  if (!phone || phone === "unknown") {
+    phone = lookupData?.phone || "unknown";
+  }
+  phone = normalizePhone(phone);
 
   if (!bookingId) {
     return {
@@ -385,9 +390,9 @@ async function handleLookupBookings(
   ctx: RequestContext
 ): Promise<HandlerResult> {
   const parsed = LookupBookingsArgsSchema.parse(args);
-  recordLookup(ctx.callId);
 
   const phone = normalizePhone(parsed.callerPhone || parsed.caller_phone || ctx.callerPhone);
+  recordLookup(ctx.callId, phone);
   const name = parsed.name || parsed.caller_name;
   const dateHint = parsed.dateHint || parsed.date_hint;
 
@@ -700,7 +705,7 @@ router.post("/", verifyWebhookSignature, async (req, res) => {
 
   // Phone required for mutation operations — safety net (primary guard is Retell flow)
   const PHONE_REQUIRED_FUNCTIONS: FunctionName[] = [
-    "create_booking", "cancel_booking", "lookup_bookings", "take_message",
+    "create_booking", "lookup_bookings", "take_message",
   ];
 
   if (PHONE_REQUIRED_FUNCTIONS.includes(name) && (!callerPhone || callerPhone === "unknown")) {
