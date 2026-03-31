@@ -4,11 +4,9 @@ import Retell from 'retell-sdk';
 const client = new Retell({ apiKey: process.env.RETELL_API_KEY });
 const FLOW_ID = 'conversation_flow_710161ccad8e';
 
-async function main() {
-  const flow = await client.conversationFlow.retrieve(FLOW_ID);
+// ─── Prompts (synced with setup-retell.mjs) ───
 
-  // 1. Global prompt — synced with setup-retell.mjs
-  const updatedGlobalPrompt = `TARİH VE SAAT BİLGİSİ:
+const GLOBAL_PROMPT = `TARİH VE SAAT BİLGİSİ:
 - Şu anki tarih ve saat: {{current_time_Europe/Istanbul}}
 - 14 günlük takvim: {{current_calendar_Europe/Istanbul}}
 - Arayanın numarası: {{user_number}}
@@ -32,14 +30,8 @@ DOKTORLAR:
 - Uzman Doktor Güneş Tekten — Obezite ve Metabolik Cerrahi
 - Profesör Doktor Bahattin Çeliköz — Plastik ve Estetik Cerrahi`;
 
-  // 2. Update node prompts
-  const updatedNodes = flow.nodes.map(node => {
-    if (node.id === 'node_intent_detection') {
-      return {
-        ...node,
-        instruction: {
-          ...node.instruction,
-          text: `Arayanın talebini analiz et ve doğru node'a yönlendir. Doktor sorma, işlem sorma — sadece niyeti belirle.
+const NODE_PROMPTS = {
+  node_intent_detection: `Arayanın talebini analiz et ve doğru node'a yönlendir. Doktor sorma, işlem sorma — sadece niyeti belirle.
 
 Niyetler:
 - Randevu alma
@@ -51,135 +43,8 @@ Niyetler:
 - Geri arama / takip
 
 Acil durum algıladığında hastaya tavsiye verme, 112 yönlendirmesi yapma — sadece acil durum node'una yönlendir.`,
-        },
-      };
-    }
-    if (node.id === 'node_urgent_escalation') {
-      return {
-        ...node,
-        instruction: {
-          type: 'prompt',
-          text: `Acil durum — hızlı ve sakin yönet.
 
-SIRA:
-1. Sakinleştir: "Merak etmeyin efendim, doktorumuza hemen bilgi vereyim"
-2. İsim ve telefon al — numarayı geri oku ve doğrulat
-3. Belirtileri hastanın söylediği şekilde not al (ek soru sorma, doktor değilsin)
-4. take_message tool'unu çağır (message_type: "urgent")
-5. "Doktorumuza ilettim, en kısa sürede dönüş yapacak. Telefonunuzu açık tutun."
-
-KURALLAR:
-- take_message çağrılmadan kapanışa geçme
-- Tıbbi tavsiye verme
-- 112 yönlendirmesi sadece hayati tehlike: nefes alamıyor, bilinç kaybı
-- {{user_number}} kullanma`,
-        },
-      };
-    }
-    if (node.id === 'node_callback_followup') {
-      return {
-        ...node,
-        instruction: {
-          type: 'prompt',
-          text: `Geri arama talebi yönet.
-
-SIRA:
-1. İsim ve telefon al — numarayı geri oku ve doğrulat
-2. Hangi konuda geri arama beklendiğini kısa öğren
-3. take_message tool'unu çağır (message_type: "callback")
-4. "Talebinizi not aldım, en kısa sürede dönüş yapılacak"
-
-KURALLAR:
-- take_message çağrılmadan kapanışa geçme
-- Kayıtlarda not bulunamazsa: "Dilerseniz tekrar bir geri arama talebi oluşturayım"
-- {{user_number}} kullanma`,
-        },
-      };
-    }
-    if (node.id === 'node_message_taking') {
-      return {
-        ...node,
-        instruction: {
-          type: 'prompt',
-          text: `Arayanın mesajını al ve kaydet.
-
-SIRA:
-1. İsim al (zaten varsa tekrar sorma)
-2. Telefon numarası al — geri oku ve doğrulat
-3. Mesajı dinle
-4. Özetle ve geri oku: "Mesajınızı tekrar edeyim: [özet]. Doğru mu?"
-5. Onay gelince take_message tool'unu çağır (message_type: "message")
-
-KURALLAR:
-- take_message çağrılmadan kapanışa geçme
-- {{user_number}} kullanma — numarayı hastadan sesli al`,
-        },
-      };
-    }
-    if (node.id === 'node_cancellation') {
-      return {
-        ...node,
-        instruction: {
-          type: 'prompt',
-          text: `Hastanın randevu iptal talebini yönet.
-
-SIRA:
-1. İsim ve telefon numarası al — numarayı geri oku ve doğrulat
-2. lookup_bookings ile randevuları getir
-3. Tek randevu varsa direkt onayla: "2 Nisan saat 15:00 randevunuz var, iptal edelim mi?"
-   Birden fazlaysa tarih ve doktor adıyla kısa özetle, seçtir
-4. Onay al
-5. cancel_booking ile iptal et
-
-KURALLAR:
-- lookup_bookings çağrılmadan cancel_booking çağırma
-- İptal politikası: Kısıtlama yok, her zaman iptal edilebilir
-- {{user_number}} kullanma — numarayı hastadan sesli al`,
-        },
-      };
-    }
-    if (node.id === 'node_rescheduling') {
-      return {
-        ...node,
-        instruction: {
-          type: 'prompt',
-          text: `Hastanın randevu değişikliği talebini yönet.
-
-SIRA:
-1. İsim ve telefon numarası al (zaten biliniyorsa tekrar sorma) — numarayı geri oku ve doğrulat
-2. lookup_bookings ile mevcut randevuyu getir
-3. Tek randevu varsa direkt onayla: "2 Nisan saat 15:00 randevunuzu değiştirmek istiyorsunuz, doğru mu?"
-   Birden fazlaysa kısa özetle ve seçtir
-4. Yeni tarih/saat öğren
-5. check_availability ile kontrol et — slot'ları tek tek sayma, zaman aralığı olarak söyle
-6. Onay al
-7. ÖNCE create_booking ile yeni randevuyu oluştur
-8. Başarılıysa cancel_booking ile eskiyi iptal et
-
-KURALLAR:
-- Önce yeni oluştur, sonra eski iptal et — yeni başarısız olursa eski korunur
-- Slot yoksa alternatif öner veya mesaj almayı teklif et
-- {{user_number}} kullanma`,
-        },
-      };
-    }
-    if (node.id === 'node_inquiry') {
-      return {
-        ...node,
-        instruction: {
-          type: 'prompt',
-          text: `Hastanın sorularını Bilgi Bankası'ndan yanıtla.
-Fiyat sorulursa: "Fiyatlarımız muayene sonrasında belirleniyor efendim"
-Bilgi Bankası'nda yoksa: mesaj almayı teklif et.`,
-        },
-      };
-    }
-    if (node.id === 'node_booking') {
-      return {
-        ...node,
-        instruction: {
-          type: 'prompt',
-          text: `Hastanın randevu talebini yönet.
+  node_booking: `Hastanın randevu talebini yönet.
 
 SIRA:
 1. ÖNCE hangi işlem istediğini sor — doktor seçimini sen yap, hastaya doktor sorma
@@ -197,6 +62,99 @@ KURALLAR:
 - {{user_number}} kullanma — numarayı hastadan sesli al
 - Slot yoksa alternatif tarih öner veya mesaj almayı teklif et
 - Slot'ları tek tek sayma — zaman aralığı olarak söyle: "Sabah 9 ile 11:30 arası müsait efendim" gibi`,
+
+  node_cancellation: `Hastanın randevu iptal talebini yönet.
+
+SIRA:
+1. İsim ve telefon numarası al — numarayı geri oku ve doğrulat
+2. lookup_bookings ile randevuları getir
+3. Tek randevu varsa direkt onayla: "2 Nisan saat 15:00 randevunuz var, iptal edelim mi?"
+   Birden fazlaysa tarih ve doktor adıyla kısa özetle, seçtir
+4. Onay al
+5. cancel_booking ile iptal et
+
+KURALLAR:
+- lookup_bookings çağrılmadan cancel_booking çağırma
+- İptal politikası: Kısıtlama yok, her zaman iptal edilebilir
+- {{user_number}} kullanma — numarayı hastadan sesli al`,
+
+  node_rescheduling: `Hastanın randevu değişikliği talebini yönet.
+
+SIRA:
+1. İsim ve telefon numarası al (zaten biliniyorsa tekrar sorma) — numarayı geri oku ve doğrulat
+2. lookup_bookings ile mevcut randevuyu getir
+3. Tek randevu varsa direkt onayla: "2 Nisan saat 15:00 randevunuzu değiştirmek istiyorsunuz, doğru mu?"
+   Birden fazlaysa kısa özetle ve seçtir
+4. Yeni tarih/saat öğren
+5. check_availability ile kontrol et — slot'ları tek tek sayma, zaman aralığı olarak söyle
+6. Onay al
+7. ÖNCE create_booking ile yeni randevuyu oluştur
+8. Başarılıysa cancel_booking ile eskiyi iptal et
+
+KURALLAR:
+- Önce yeni oluştur, sonra eski iptal et — yeni başarısız olursa eski korunur
+- Slot yoksa alternatif öner veya mesaj almayı teklif et
+- {{user_number}} kullanma`,
+
+  node_inquiry: `Hastanın sorularını Bilgi Bankası'ndan yanıtla.
+Fiyat sorulursa: "Fiyatlarımız muayene sonrasında belirleniyor efendim"
+Bilgi Bankası'nda yoksa: mesaj almayı teklif et.`,
+
+  node_message_taking: `Arayanın mesajını al ve kaydet.
+
+SIRA:
+1. İsim al (zaten varsa tekrar sorma)
+2. Telefon numarası al — geri oku ve doğrulat
+3. Mesajı dinle
+4. Özetle ve geri oku: "Mesajınızı tekrar edeyim: [özet]. Doğru mu?"
+5. Onay gelince take_message tool'unu çağır (message_type: "message")
+
+KURALLAR:
+- take_message çağrılmadan kapanışa geçme
+- {{user_number}} kullanma — numarayı hastadan sesli al`,
+
+  node_urgent_escalation: `Acil durum — hızlı ve sakin yönet.
+
+SIRA:
+1. Sakinleştir: "Merak etmeyin efendim, doktorumuza hemen bilgi vereyim"
+2. İsim ve telefon al — numarayı geri oku ve doğrulat
+3. Belirtileri hastanın söylediği şekilde not al (ek soru sorma, doktor değilsin)
+4. take_message tool'unu çağır (message_type: "urgent")
+5. "Doktorumuza ilettim, en kısa sürede dönüş yapacak. Telefonunuzu açık tutun."
+
+KURALLAR:
+- take_message çağrılmadan kapanışa geçme
+- Tıbbi tavsiye verme
+- 112 yönlendirmesi sadece hayati tehlike: nefes alamıyor, bilinç kaybı
+- {{user_number}} kullanma`,
+
+  node_callback_followup: `Geri arama talebi yönet.
+
+SIRA:
+1. İsim ve telefon al — numarayı geri oku ve doğrulat
+2. Hangi konuda geri arama beklendiğini kısa öğren
+3. take_message tool'unu çağır (message_type: "callback")
+4. "Talebinizi not aldım, en kısa sürede dönüş yapılacak"
+
+KURALLAR:
+- take_message çağrılmadan kapanışa geçme
+- Kayıtlarda not bulunamazsa: "Dilerseniz tekrar bir geri arama talebi oluşturayım"
+- {{user_number}} kullanma`,
+};
+
+// ─── Main ───
+
+async function main() {
+  const flow = await client.conversationFlow.retrieve(FLOW_ID);
+
+  // Update nodes — only touch nodes with prompts defined above
+  const updatedNodes = flow.nodes.map(node => {
+    if (NODE_PROMPTS[node.id]) {
+      return {
+        ...node,
+        instruction: {
+          type: 'prompt',
+          text: NODE_PROMPTS[node.id],
         },
       };
     }
@@ -204,13 +162,13 @@ KURALLAR:
   });
 
   await client.conversationFlow.update(FLOW_ID, {
-    global_prompt: updatedGlobalPrompt,
+    global_prompt: GLOBAL_PROMPT,
     nodes: updatedNodes,
   });
 
-  console.log('Flow updated:');
-  console.log('  - Global prompt: dynamic date/time variables added');
-  console.log('  - Booking node: name+phone enforcement applied');
+  const updated = Object.keys(NODE_PROMPTS);
+  console.log(`Flow updated: global prompt + ${updated.length} nodes`);
+  updated.forEach(id => console.log(`  - ${id}`));
 }
 
 main().catch(err => {
