@@ -229,13 +229,14 @@ Olası niyetler:
         text: `Hastanın randevu talebini yönet.
 
 SIRA:
-1. Hangi işlem istediğini sor
-2. İşleme göre doktoru belirle ve onayla
+1. ÖNCE hangi işlem istediğini sor — doktor seçimini sen yap, hastaya doktor sorma
+2. İşlemi onayla ve doktoru bildir
 3. Tercih edilen tarih ve saati öğren
 4. check_availability ile kontrol et
 5. İsim sor
-6. Telefon numarası sor
+6. Telefon numarası sor — aldıktan sonra geri oku ve doğrulat
 7. create_booking ile randevuyu oluştur
+8. Randevu detaylarını oku: tarih, saat, doktor
 
 KURALLAR:
 - doctor_name zorunlu — tool çağrısında mutlaka gönder
