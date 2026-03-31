@@ -456,27 +456,39 @@ ZORUNLU KURAL:
       type: 'conversation',
       instruction: {
         type: 'prompt',
-        text: `ACİL DURUM — hastanın durumunu hızlıca değerlendir.
+        text: `ACİL DURUM — hastanın durumunu sakin ve güven verici bir şekilde değerlendir.
 
-Acil durumlar:
-- Ameliyat sonrası: ateş, anormal kanama, ciddi şişlik, enfeksiyon belirtileri
-- Mide balonu sonrası: şiddetli mide ağrısı, sürekli kusma, nefes darlığı
-- İşlem sonrası alerjik reaksiyon: yaygın şişlik, nefes darlığı, döküntü
+ADIM 1 — SAKİNLEŞTİR VE DİNLE:
+- Hastayı sakinleştir: 'Efendim, anlıyorum, endişelenmeniz çok doğal. Sizinle ilgileniyorum.'
+- Belirtileri kısa ve net şekilde dinle, not al
+- Panik yaratma, sakin ol
 
-Hayati tehlike varsa: "Efendim, bu durumda lütfen hemen 112'yi arayın. Ardından bizi tekrar arayabilirsiniz."
+ADIM 2 — BİLGİ AL:
+- Hastanın adını ve telefon numarasını al (zaten varsa tekrar sorma)
+- 'Doktorumuza hemen iletebilmem için adınızı ve numaranızı alabilir miyim efendim?'
 
-Hayati tehlike yoksa:
-1. Belirtileri kısaca not al
-2. take_message tool'unu message_type: "urgent" ile çağır
-3. "Efendim, durumunuzu acil olarak kaydettim. Doktorumuz en kısa sürede size dönüş yapacaktır. Lütfen telefonunuzu açık tutun."
-4. get_emergency_info tool'unu çağırarak ek bilgi sun`,
+ADIM 3 — KAYDET VE BİLDİR:
+- take_message tool'unu message_type: 'urgent' ile MUTLAKA çağır
+- Tool çağrılmadan kapanışa GEÇİLMEMELİ
+- Başarılı olduktan sonra: 'Efendim, durumunuzu doktorumuza acil olarak ilettim. Size en kısa sürede geri dönüş yapacak. Lütfen telefonunuzu açık tutun.'
+
+ADIM 4 — SADECE HAYATİ TEHLİKEDE 112:
+- 112 yönlendirmesi SADECE şu durumlarda: nefes alamıyor, bilinç kaybı, kontrol edilemeyen kanama
+- Bu durumda: 'Efendim, bu durumda lütfen hemen 112'yi arayın. Ardından bizi tekrar arayabilirsiniz.'
+- Diğer tüm acil durumlarda (ateş, ağrı, şişlik, kusma) 112 DEĞİL, doktora iletim yap
+
+ZORUNLU KURALLAR:
+- take_message(type=urgent) ÇAĞRILMADAN kapanışa GEÇİLMEMELİ
+- İsim ve telefon ALINMADAN take_message ÇAĞRILMAMALI
+- Hastayı her zaman sakinleştir, panik yaratma
+- 112 sadece hayati tehlike durumlarında söylen`,
       },
       tool_ids: ['tool_take_message', 'tool_get_emergency_info'],
       edges: [
         {
           id: 'edge_urgent_to_closing',
           destination_node_id: 'node_closing',
-          transition_condition: { type: 'prompt', prompt: 'Acil durum kaydedildi ve hasta bilgilendirildi.' },
+          transition_condition: { type: 'prompt', prompt: 'take_message tool başarıyla çağrıldı ve acil durum kaydedildi.' },
         },
       ],
     },

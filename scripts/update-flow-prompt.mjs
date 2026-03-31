@@ -23,6 +23,40 @@ async function main() {
 
   // 2. Update booking node prompt — enforce name+phone collection before create_booking
   const updatedNodes = flow.nodes.map(node => {
+    if (node.id === 'node_urgent_escalation') {
+      return {
+        ...node,
+        instruction: {
+          type: 'prompt',
+          text: `ACİL DURUM — hastanın durumunu sakin ve güven verici bir şekilde değerlendir.
+
+ADIM 1 — SAKİNLEŞTİR VE DİNLE:
+- Hastayı sakinleştir: 'Efendim, anlıyorum, endişelenmeniz çok doğal. Sizinle ilgileniyorum.'
+- Belirtileri kısa ve net şekilde dinle, not al
+- Panik yaratma, sakin ol
+
+ADIM 2 — BİLGİ AL:
+- Hastanın adını ve telefon numarasını al (zaten varsa tekrar sorma)
+- 'Doktorumuza hemen iletebilmem için adınızı ve numaranızı alabilir miyim efendim?'
+
+ADIM 3 — KAYDET VE BİLDİR:
+- take_message tool'unu message_type: 'urgent' ile MUTLAKA çağır
+- Tool çağrılmadan kapanışa GEÇİLMEMELİ
+- Başarılı olduktan sonra: 'Efendim, durumunuzu doktorumuza acil olarak ilettim. Size en kısa sürede geri dönüş yapacak. Lütfen telefonunuzu açık tutun.'
+
+ADIM 4 — SADECE HAYATİ TEHLİKEDE 112:
+- 112 yönlendirmesi SADECE şu durumlarda: nefes alamıyor, bilinç kaybı, kontrol edilemeyen kanama
+- Bu durumda: 'Efendim, bu durumda lütfen hemen 112'yi arayın. Ardından bizi tekrar arayabilirsiniz.'
+- Diğer tüm acil durumlarda (ateş, ağrı, şişlik, kusma) 112 DEĞİL, doktora iletim yap
+
+ZORUNLU KURALLAR:
+- take_message(type=urgent) ÇAĞRILMADAN kapanışa GEÇİLMEMELİ
+- İsim ve telefon ALINMADAN take_message ÇAĞRILMAMALI
+- Hastayı her zaman sakinleştir, panik yaratma
+- 112 sadece hayati tehlike durumlarında söylen`,
+        },
+      };
+    }
     if (node.id === 'node_message_taking') {
       return {
         ...node,
