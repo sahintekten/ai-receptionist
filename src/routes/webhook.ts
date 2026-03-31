@@ -63,7 +63,15 @@ router.post("/call-completed", verifyWebhookSignature, async (req, res) => {
 
   // Fallback: use phone cached during in-call handlers (web test calls have no from_number)
   if (callerPhone === "unknown") {
+    const cacheSize = callPhoneCache.size;
     const cached = callPhoneCache.get(callId);
+    logger.info("Phone cache lookup", {
+      action: "phone_cache_read",
+      call_id: callId,
+      cached_phone: cached || "miss",
+      cache_size: cacheSize,
+      cache_keys: Array.from(callPhoneCache.keys()).slice(0, 5),
+    });
     if (cached) {
       callerPhone = cached;
       callPhoneCache.delete(callId);

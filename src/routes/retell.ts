@@ -29,6 +29,12 @@ export const callPhoneCache = new Map<string, string>();
 function cacheCallerPhone(callId: string, phone: string): void {
   if (phone && phone !== "unknown") {
     callPhoneCache.set(callId, phone);
+    logger.info("Phone cached for post-call", {
+      action: "phone_cache_write",
+      call_id: callId,
+      phone,
+      cache_size: callPhoneCache.size,
+    });
   }
 }
 
