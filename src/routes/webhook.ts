@@ -125,6 +125,14 @@ router.post("/call-completed", verifyWebhookSignature, async (req, res) => {
     }
 
     // ─── Step 2: Update caller memory ────────────────────
+    logger.info("Post-call phone resolution", {
+      ...logCtx(ctx),
+      action: "post_call_phone",
+      caller_phone: callerPhone,
+      from_number: call.from_number || null,
+      phone_source: call.from_number ? "from_number" : (callerPhone !== "unknown" ? "cache" : "unknown"),
+    });
+
     if (callerPhone && callerPhone !== "unknown") {
       try {
         await memoryService.updateMemoryAfterCall(
