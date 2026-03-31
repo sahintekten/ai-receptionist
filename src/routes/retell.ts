@@ -22,6 +22,16 @@ import type { RequestContext } from "../lib/requestContext";
 
 const router = Router();
 
+// ─── In-memory call phone cache (callId → phone, for post-call pipeline) ────
+
+export const callPhoneCache = new Map<string, string>();
+
+function cacheCallerPhone(callId: string, phone: string): void {
+  if (phone && phone !== "unknown") {
+    callPhoneCache.set(callId, phone);
+  }
+}
+
 // ─── In-memory lookup tracking (safety net for cancel/reschedule) ────
 
 const lookupTracker = new Map<string, boolean>();
@@ -36,9 +46,8 @@ function hasLookup(callId: string): boolean {
 
 // Clean up old entries periodically (prevent memory leak)
 setInterval(() => {
-  if (lookupTracker.size > 10_000) {
-    lookupTracker.clear();
-  }
+  if (lookupTracker.size > 10_000) lookupTracker.clear();
+  if (callPhoneCache.size > 10_000) callPhoneCache.clear();
 }, 60 * 60 * 1000);
 
 // ─── Date Formatting ────────────────────────────────────
@@ -655,10 +664,13 @@ router.post("/", verifyWebhookSignature, async (req, res) => {
   let callerPhone = call.from_number || "unknown";
   if (callerPhone === "unknown") {
     const argsPhone = (argsObj.callerPhone || argsObj.caller_phone) as string | undefined;
-    if (argsPhone && argsPhone.length > 0) {
+    if (argsPhone && argsPhone.length > 0 && !/^\{\{.+\}\}$/.test(argsPhone.trim())) {
       callerPhone = argsPhone;
     }
   }
+
+  // Cache resolved phone for post-call pipeline
+  cacheCallerPhone(callId, callerPhone);
 
   // Phone required for mutation operations — safety net (primary guard is Retell flow)
   const PHONE_REQUIRED_FUNCTIONS: FunctionName[] = [

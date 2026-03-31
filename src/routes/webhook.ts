@@ -4,6 +4,7 @@ import { resolveBusiness } from "../resolver/businessResolver";
 import { createRequestContext } from "../lib/requestContext";
 import { RetellCallCompletedSchema } from "../lib/validation";
 import { logger } from "../lib/logger";
+import { callPhoneCache } from "./retell";
 import * as callLogService from "../services/callLog";
 import * as memoryService from "../services/memory";
 import * as crmService from "../services/crm";
@@ -44,7 +45,18 @@ router.post("/call-completed", verifyWebhookSignature, async (req, res) => {
   const { call } = parsed.data;
   const callId = call.call_id;
   const agentId = call.agent_id;
-  const callerPhone = call.from_number || "unknown";
+  let callerPhone = call.from_number || "unknown";
+
+  // Fallback: use phone cached during in-call handlers (web test calls have no from_number)
+  if (callerPhone === "unknown") {
+    const cached = callPhoneCache.get(callId);
+    if (cached) {
+      callerPhone = cached;
+      callPhoneCache.delete(callId);
+    }
+  } else {
+    callPhoneCache.delete(callId);
+  }
 
   try {
     // Resolve business — webhook always has agent_id in real calls
