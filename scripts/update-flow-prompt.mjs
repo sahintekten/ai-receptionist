@@ -23,6 +23,18 @@ async function main() {
 
   // 2. Update booking node prompt — enforce name+phone collection before create_booking
   const updatedNodes = flow.nodes.map(node => {
+    if (node.id === 'node_intent_detection') {
+      const existingText = node.instruction?.text || '';
+      if (!existingText.includes('112 yönlendirmesi YAPMA')) {
+        return {
+          ...node,
+          instruction: {
+            ...node.instruction,
+            text: existingText + `\n\nÖNEMLİ: Acil durum algıladığında hastaya tavsiyelerde BULUNMA, 112 yönlendirmesi YAPMA. Sadece acil durum node'una yönlendir. Acil durum yönetimi o node'un işi.`,
+          },
+        };
+      }
+    }
     if (node.id === 'node_urgent_escalation') {
       return {
         ...node,

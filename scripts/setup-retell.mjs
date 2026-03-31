@@ -185,7 +185,9 @@ Olası niyetler:
 - Genel soru / bilgi (inquiry)
 - Mesaj bırakma (message_taking)
 - Acil durum (urgent_escalation)
-- Geri arama / takip (callback_followup)`,
+- Geri arama / takip (callback_followup)
+
+ÖNEMLİ: Acil durum algıladığında hastaya tavsiyelerde BULUNMA, 112 yönlendirmesi YAPMA. Sadece acil durum node'una yönlendir. Acil durum yönetimi o node'un işi.`,
       },
       edges: [
         {
