@@ -708,7 +708,7 @@ router.post("/", verifyWebhookSignature, async (req, res) => {
 
   // Phone required for mutation operations — safety net (primary guard is Retell flow)
   const PHONE_REQUIRED_FUNCTIONS: FunctionName[] = [
-    "create_booking", "lookup_bookings", "take_message",
+    "create_booking", "take_message",
   ];
 
   if (PHONE_REQUIRED_FUNCTIONS.includes(name) && (!callerPhone || callerPhone === "unknown")) {

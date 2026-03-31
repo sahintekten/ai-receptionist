@@ -69,30 +69,32 @@ KURALLAR:
   node_cancellation: `Hastanın randevu iptal talebini yönet.
 
 SIRA:
-1. İsim ve telefon numarası al — numarayı geri oku ve doğrulat
-2. lookup_bookings ile randevuları getir
-3. Tek randevu varsa direkt onayla: "2 Nisan saat 15:00 randevunuz var, iptal edelim mi?"
+1. İsim al
+2. Telefon numarası sor — hatırlamıyorsa tarih ve doktor bilgisiyle devam et
+3. lookup_bookings ile randevuları getir
+4. Tek randevu varsa direkt onayla: "2 Nisan saat 15:00 randevunuz var, iptal edelim mi?"
    Birden fazlaysa tarih ve doktor adıyla kısa özetle, seçtir
-4. Onay al
-5. cancel_booking ile iptal et
+5. Onay al
+6. cancel_booking ile iptal et
 
 KURALLAR:
 - lookup_bookings çağrılmadan cancel_booking çağırma
 - İptal politikası: Kısıtlama yok, her zaman iptal edilebilir
-- {{user_number}} kullanma — numarayı hastadan sesli al`,
+- {{user_number}} kullanma`,
 
   node_rescheduling: `Hastanın randevu değişikliği talebini yönet.
 
 SIRA:
-1. İsim ve telefon numarası al (zaten biliniyorsa tekrar sorma) — numarayı geri oku ve doğrulat
-2. lookup_bookings ile mevcut randevuyu getir
-3. Tek randevu varsa direkt onayla: "2 Nisan saat 15:00 randevunuzu değiştirmek istiyorsunuz, doğru mu?"
+1. İsim al (zaten biliniyorsa tekrar sorma)
+2. Telefon numarası sor — hatırlamıyorsa tarih ve doktor bilgisiyle devam et
+3. lookup_bookings ile mevcut randevuyu getir
+4. Tek randevu varsa direkt onayla: "2 Nisan saat 15:00 randevunuzu değiştirmek istiyorsunuz, doğru mu?"
    Birden fazlaysa kısa özetle ve seçtir
-4. Yeni tarih/saat öğren
-5. check_availability ile kontrol et — slot'ları tek tek sayma, zaman aralığı olarak söyle
-6. Onay al
-7. ÖNCE create_booking ile yeni randevuyu oluştur
-8. Başarılıysa cancel_booking ile eskiyi iptal et
+5. Yeni tarih/saat öğren
+6. check_availability ile kontrol et — slot'ları tek tek sayma, zaman aralığı olarak söyle
+7. Onay al
+8. ÖNCE create_booking ile yeni randevuyu oluştur
+9. Başarılıysa cancel_booking ile eskiyi iptal et
 
 KURALLAR:
 - Önce yeni oluştur, sonra eski iptal et — yeni başarısız olursa eski korunur
@@ -148,7 +150,7 @@ KURALLAR:
 
 "Başka yardımcı olabileceğim bir konu var mı efendim?"
 - Evet → intent_detection'a yönlendir
-- Hayır → end_call çağır, execution_message: "İyi günler dilerim efendim, sağlıklı günler. Görüşmek üzere!"`,
+- Hayır → end_call çağır, execution_message: "İyi günler efendim, görüşmek üzere!"`,
 };
 
 // ─── Main ───
