@@ -256,7 +256,7 @@ async function handleCreateBooking(
     try {
       await memoryService.updateMemoryAfterCall(
         ctx.businessId, normalizedPhone,
-        { lastCallId: ctx.callId, recentAppointmentStatus: "booked", callerName },
+        { recentAppointmentStatus: "booked", callerName },
         ctx
       );
     } catch (e) {
@@ -332,7 +332,7 @@ async function handleCancelBooking(
   try {
     await memoryService.updateMemoryAfterCall(
       ctx.businessId, phone,
-      { lastCallId: ctx.callId, recentAppointmentStatus: "cancelled" },
+      { recentAppointmentStatus: "cancelled" },
       ctx
     );
   } catch (e) {
@@ -441,7 +441,6 @@ async function handleTakeMessage(
       await memoryService.updateMemoryAfterCall(
         ctx.businessId, phone,
         {
-          lastCallId: ctx.callId,
           callerName,
           recentMessageSummary: `[${typeLabels[messageType]}] ${messageText.slice(0, 200)}`,
         },

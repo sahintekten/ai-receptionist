@@ -73,7 +73,7 @@ export async function getCallerMemoryForBusiness(
 
 export interface MemoryUpdate {
   callerName?: string;
-  lastCallId: string;
+  lastCallId?: string;
   lastCallAt?: Date;
   recentAppointmentStatus?: string;
   recentMessageSummary?: string;
@@ -96,7 +96,7 @@ export async function updateMemoryAfterCall(
 
   // Stale overwrite guard: check if a newer call already updated memory
   const existing = await memoryRepo.getByBusinessAndPhone(businessId, callerPhone);
-  if (existing && existing.lastCallId && existing.lastCallId !== updates.lastCallId) {
+  if (existing && existing.lastCallId && updates.lastCallId && existing.lastCallId !== updates.lastCallId) {
     // Another call already updated memory — check if it's newer
     if (existing.lastCallAt && updates.lastCallAt && existing.lastCallAt > updates.lastCallAt) {
       logger.warn("Stale memory update skipped — newer call already updated", {
@@ -111,9 +111,9 @@ export async function updateMemoryAfterCall(
   }
 
   const data: Parameters<typeof memoryRepo.upsertMemory>[2] = {
-    lastCallId: updates.lastCallId,
     lastCallAt: updates.lastCallAt || new Date(),
   };
+  if (updates.lastCallId) data.lastCallId = updates.lastCallId;
 
   // Only update fields that are provided
   if (updates.callerName) data.callerName = updates.callerName;
