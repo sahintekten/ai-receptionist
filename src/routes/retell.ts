@@ -66,19 +66,6 @@ setInterval(() => {
   if (callPhoneCache.size > 10_000) callPhoneCache.clear();
 }, 60 * 60 * 1000);
 
-// ─── Date Formatting ────────────────────────────────────
-
-function formatDateTurkish(isoDate: string, timezone: string): string {
-  const date = new Date(isoDate);
-  const dayMonth = new Intl.DateTimeFormat("tr-TR", {
-    day: "numeric", month: "long", weekday: "long", timeZone: timezone,
-  }).format(date);
-  const time = new Intl.DateTimeFormat("tr-TR", {
-    hour: "2-digit", minute: "2-digit", timeZone: timezone,
-  }).format(date);
-  return `${dayMonth} saat ${time}`;
-}
-
 // ─── Phone Normalization ─────────────────────────────────
 
 function normalizePhone(phone: string): string {
@@ -150,7 +137,6 @@ async function handleCheckAvailability(
   if (allSlots.length === 0) {
     return {
       result: "no_availability",
-      user_message: "Maalesef bu tarihte müsait randevu slotu bulunmuyor efendim. Başka bir tarih denemek ister misiniz?",
       eventTypeId: result.eventTypeId,
       eventTypeName: result.eventTypeName,
     };
@@ -198,8 +184,7 @@ async function handleCreateBooking(
 
   if (!slot) {
     return {
-      result: "error",
-      user_message: "Randevu tarihi belirtilmedi efendim. Hangi tarih ve saati tercih edersiniz?",
+      result: "missing_slot",
     };
   }
 
@@ -250,8 +235,7 @@ async function handleCreateBooking(
 
   if (!eventTypeId) {
     return {
-      result: "error",
-      user_message: "Hangi işlem için randevu almak istiyorsunuz? Obezite veya estetik cerrahi seçeneklerimiz mevcut.",
+      result: "missing_event_type",
     };
   }
 
@@ -302,7 +286,7 @@ async function handleCreateBooking(
       title: result.title,
       start: result.start,
       end: result.end,
-      user_message: `Randevunuz oluşturuldu efendim. ${formatDateTurkish(result.start, config.business.timezone)} tarihinde sizi bekliyoruz.`,
+      timezone: config.business.timezone,
     };
   } catch (error) {
     if (error instanceof IntegrationError) {
@@ -322,7 +306,6 @@ async function handleCreateBooking(
 
         return {
           result: "conflict",
-          user_message: "Bu randevu slotu az önce doldu efendim. Müsait başka slotlara bakayım hemen.",
         };
       }
     }
@@ -350,8 +333,7 @@ async function handleCancelBooking(
 
   if (!bookingId) {
     return {
-      result: "error",
-      user_message: "İptal edilecek randevu belirtilmedi efendim. Önce randevularınızı kontrol edeyim.",
+      result: "missing_booking_id",
     };
   }
 
@@ -383,7 +365,6 @@ async function handleCancelBooking(
   return {
     result: "success",
     bookingUid: result.bookingUid,
-    user_message: "Randevunuz iptal edildi efendim.",
   };
 }
 
@@ -411,7 +392,6 @@ async function handleLookupBookings(
   if (result.bookings.length === 0) {
     return {
       result: "no_bookings",
-      user_message: "Kayıtlı randevunuz bulunmuyor efendim.",
       bookings: [],
     };
   }
@@ -496,20 +476,11 @@ async function handleTakeMessage(
       });
     }
 
-    // Type-specific responses
-    const userMessages: Record<string, string> = {
-      message: "Mesajınızı aldım efendim, en kısa sürede size dönüş yapılacaktır.",
-      callback: "Geri arama talebinizi kaydettim efendim, size dönüş yapılacaktır.",
-      urgent: (config.business.urgentEscalationConfig as { escalation_message?: string })?.escalation_message
-        || "Talebinizi acil olarak ilettim efendim, en kısa sürede size dönüş yapılacaktır.",
-    };
-
     return {
       result: "success",
       type: messageType,
       noteId,
       personId,
-      user_message: userMessages[messageType],
     };
   } catch (error) {
     // Graceful degradation — CRM failure should never crash the call
@@ -524,7 +495,6 @@ async function handleTakeMessage(
     return {
       result: "partial_success",
       type: messageType,
-      user_message: "Mesajınızı aldım efendim, size dönüş yapılacaktır.",
     };
   }
 }
@@ -540,7 +510,6 @@ async function handleGetCallerMemory(
   if (!phone || phone === "unknown") {
     return {
       result: "no_memory",
-      user_message: "Arayan bilgisi bulunamadı.",
     };
   }
 
@@ -589,22 +558,6 @@ async function handleGetBusinessHours(
   const hours = config.business.operatingHours as Record<string, Array<{ open: string; close: string }>>;
   const timezone = config.business.timezone;
 
-  const dayNames: Record<string, string> = {
-    monday: "Pazartesi", tuesday: "Salı", wednesday: "Çarşamba",
-    thursday: "Perşembe", friday: "Cuma", saturday: "Cumartesi", sunday: "Pazar",
-  };
-
-  const formatted: string[] = [];
-  for (const [day, slots] of Object.entries(hours)) {
-    const label = dayNames[day] || day;
-    if (!slots || slots.length === 0) {
-      formatted.push(`${label}: Kapalı`);
-    } else {
-      const ranges = slots.map((s) => `${s.open}-${s.close}`).join(", ");
-      formatted.push(`${label}: ${ranges}`);
-    }
-  }
-
   logger.info("Business hours returned", {
     call_id: ctx.callId, business_id: ctx.businessId,
     action: "get_business_hours", status: "ok",
@@ -614,8 +567,6 @@ async function handleGetBusinessHours(
     result: "success",
     hours,
     timezone,
-    formatted: formatted.join("\n"),
-    user_message: formatted.join(". ") + ".",
   };
 }
 
@@ -639,7 +590,7 @@ async function handleGetEmergencyInfo(
   return {
     result: "success",
     situations: escalationConfig.situations || [],
-    escalation_message: escalationConfig.escalation_message || "Talebinizi acil olarak ilettim efendim.",
+    escalation_message: escalationConfig.escalation_message || null,
     response_time_promise: escalationConfig.response_time_promise || null,
   };
 }
@@ -669,8 +620,7 @@ router.post("/", verifyWebhookSignature, async (req, res) => {
       error: parsed.error.message,
     });
     res.status(400).json({
-      result: "error",
-      user_message: "Bir sorun oluştu efendim, tekrar deneyebilir misiniz?",
+      result: "validation_error",
     });
     return;
   }
@@ -718,8 +668,7 @@ router.post("/", verifyWebhookSignature, async (req, res) => {
       status: "phone_required",
     });
     res.status(200).json({
-      result: "error",
-      user_message: "Randevu işlemleri için telefon numaranıza ihtiyacım var efendim. Numaranızı söyleyebilir misiniz?",
+      result: "phone_required",
     });
     return;
   }
@@ -806,8 +755,7 @@ router.post("/", verifyWebhookSignature, async (req, res) => {
         duration_ms: durationMs,
       });
       res.status(200).json({
-        result: "error",
-        user_message: "Şu an yardımcı olamıyorum efendim, lütfen daha sonra tekrar arayın.",
+        result: "system_error",
       });
       return;
     }
@@ -820,8 +768,7 @@ router.post("/", verifyWebhookSignature, async (req, res) => {
         duration_ms: durationMs,
       });
       res.status(200).json({
-        result: "error",
-        user_message: "Önce randevularınızı kontrol etmem gerekiyor efendim, bir saniye.",
+        result: "lookup_required",
       });
       return;
     }
@@ -836,8 +783,7 @@ router.post("/", verifyWebhookSignature, async (req, res) => {
         duration_ms: durationMs,
       });
       res.status(200).json({
-        result: "error",
-        user_message: "Geçici bir sorun yaşıyorum efendim, mesajınızı alayım size dönüş yapalım.",
+        result: "service_error",
       });
       return;
     }
@@ -851,8 +797,7 @@ router.post("/", verifyWebhookSignature, async (req, res) => {
       duration_ms: durationMs,
     });
     res.status(200).json({
-      result: "error",
-      user_message: "Teknik bir sorun yaşıyorum efendim, mesajınızı alayım size dönüş yapalım.",
+      result: "system_error",
     });
   }
 });
