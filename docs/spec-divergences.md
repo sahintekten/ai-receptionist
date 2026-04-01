@@ -51,3 +51,20 @@ This document tracks all differences between the original specification (docs/pr
 | Area | Original Spec | Implementation | Reason |
 |------|--------------|----------------|--------|
 | `agent_id` in test calls | Required (spec assumes real calls) | Optional in simulation — may be empty | Retell simulation doesn't always populate `agent_id`. Business resolver requires it. Fixed by ensuring test agent has proper agent_id. |
+
+## Backend Response Format
+
+| Area | Original Spec | Implementation | Reason |
+|------|--------------|----------------|--------|
+| Tool responses | `user_message` with Turkish text for agent to speak | Data-only JSON with status codes (`no_availability`, `conflict`, `missing_slot`, etc.) | Eliminates dual-control problem: backend was writing Turkish messages AND agent had prompts — causing repetition and inconsistency. Now agent controls all speech via Retell prompts. Backend is a silent data worker. |
+| Date formatting | `formatDateTurkish()` in backend, returned in `user_message` | Raw ISO dates + timezone in response, agent formats for speech | Agent prompt controls how dates are spoken (e.g. "yarın saat üçte" vs "15:00"). Backend shouldn't make this decision. |
+| Business hours formatting | Backend formatted "Pazartesi: 09:00-12:00" as `user_message` | Raw JSON hours + timezone, agent formats for speech | Same principle — agent decides how to present hours to caller. |
+| Error messages | Turkish fallback messages in backend | Status codes (`service_error`, `system_error`, `phone_required`, `lookup_required`) | Agent prompt handles error communication in natural Turkish. Backend never writes patient-facing text. |
+| Agent management | Scripts (`setup-retell.mjs`, `update-flow-prompt.mjs`) | Retell Dashboard direct editing | Scripts archived to `scripts/archive/`. Dashboard provides visual editing of flows, prompts, and tools without terminal/code dependency. |
+
+## File Structure Cleanup
+
+| Area | Original | Current | Reason |
+|------|----------|---------|--------|
+| docs/ count | 17 files | 8 files + archive/ | 7 files were duplicates of `project-instruction.md` content (architecture.md, decisions.md, conversation-flow.md, error-handling.md, integrations.md, schemas.md, onboarding.md). Deleted — no information lost. 3 files archived (kb-workflow.md, v2-research.md, step0-results.md). |
+| scripts/ | 7 active files | 2 active + 5 archived | `seed-business.ts` and `seed-tekten.json` remain active. Setup/update scripts archived — Retell management now via Dashboard. |

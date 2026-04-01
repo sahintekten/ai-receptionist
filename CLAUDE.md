@@ -20,6 +20,7 @@ Multi-tenant voice AI receptionist platform. One backend serves multiple busines
 - Retell Conversation Flow agents (NOT Custom LLM WebSocket, NOT Single Prompt)
 - Retell handles conversation flow, KB queries, and platform-level call controls natively. All state-changing operations (scheduling, CRM, memory) go through backend custom functions. NO Retell built-in Cal.com tools.
 - Two-table config pattern: `businesses` (core) + `integration_configs` (per-integration, config_json)
+- Backend returns data-only responses to Retell — never includes patient-facing text. All speech is controlled by Retell agent prompts. Backend returns status codes (no_availability, conflict, missing_slot, etc.) and raw data (ISO dates, JSON hours). Agent formats and speaks.
 
 ## Backend Functions (9 total, 8 Retell tools)
 1. check_availability  2. create_booking  3. cancel_booking
@@ -54,7 +55,7 @@ Args normalization: both camelCase and snake_case accepted from Retell.
 src/
   server.ts              # Express app + health check + config validation on startup
   routes/
-    retell.ts            # Single Retell function entrypoint (8 handlers)
+    retell.ts            # Single Retell function entrypoint (8 handlers, data-only responses)
     webhook.ts           # Retell call.completed post-call pipeline
   middleware/
     auth.ts              # Webhook signature verification (Retell SDK)
@@ -95,19 +96,26 @@ prisma/
 scripts/
   seed-business.ts       # Idempotent business seeding
   seed-tekten.json       # Tekten Klinik pilot config
-  setup-retell.mjs       # Retell agent + flow + KB creation
-  create-agent.mjs       # Retell agent creation
-  update-flow-urls.mjs   # Bulk update Retell tool URLs
+  archive/               # Archived setup scripts (not used in production)
+docs/
+  project-instruction.md # Full V1 spec (source of truth)
+  spec-divergences.md    # Spec vs implementation differences
+  calcom-api-contract.md # Cal.com API details
+  twenty-api-contract.md # Twenty CRM API details
+  retell-api-contract.md # Retell webhook contract
+  tekten-klinik-kb.md    # Pilot clinic knowledge base
+  archive/               # Archived docs (GHL spec, step0 results, etc.)
 ```
 
 ## Error Handling
 - Booking (Cal.com create): NO retry — risk of double booking
-- Booking conflict (Cal.com 409): catch, tell caller slot taken, re-query availability
+- Booking conflict (Cal.com 409): catch, return "conflict" status, agent handles speech
 - CRM writes (Twenty): 1 retry on failure, then log and continue
-- Opus in-call: timeout → fallback message, no retry
+- Opus in-call: timeout → fallback, no retry
 - Opus post-call: async, 1 retry. Never blocks CRM writes.
 - All errors logged with call_id, business_id, function name, duration_ms, status
-- CRM failure → graceful degradation, caller-friendly message, never crash the call
+- CRM failure → graceful degradation, return status code, never crash the call
+- Backend never returns Turkish text — all error messages are status codes (service_error, system_error, phone_required, etc.)
 
 ## Post-Call Pipeline
 Trigger: Retell call.completed webhook → POST /webhook/call-completed
@@ -165,6 +173,8 @@ npm run seed         # Run onboarding seed script
 - Snake_case + camelCase args normalization (Retell sends snake_case)
 - Phone normalization: Turkish 0xx → +90xx, args fallback for test calls
 - Cal.com booking: no location field, phone in metadata, slot format .000+03:00
+- Backend returns data-only JSON to Retell — no Turkish user_message, no date formatting. Retell agent controls all patient-facing speech via prompts. Status codes: no_availability, missing_slot, conflict, etc.
+- Retell agent management via Dashboard (not scripts) — setup scripts archived, prompt changes done directly in Retell Dashboard
 
 ## Environment Variables
 RETELL_API_KEY, CALCOM_API_KEY, TWENTY_API_KEY, ANTHROPIC_API_KEY,
@@ -172,20 +182,13 @@ DATABASE_URL, PORT, NODE_ENV, LOG_LEVEL
 
 ## Detailed References
 - docs/project-instruction.md — full V1 spec (source of truth)
-- docs/schemas.md — all table schemas and config JSON formats
-- docs/decisions.md — decision log with rationale
-- docs/conversation-flow.md — intents, flows, edge cases
-- docs/integrations.md — Cal.com, Twenty, Retell, Opus details
-- docs/error-handling.md — retry, timeout, degradation rules
-- docs/onboarding.md — business onboarding steps
-- docs/v2-research.md — future paths (do not build)
-- docs/step0-results.md — Step 0 pre-build validation results
-- docs/twenty-api-contract.md — Twenty CRM API details
-- docs/calcom-api-contract.md — Cal.com API details
-- docs/retell-api-contract.md — Retell webhook contract
-- docs/kb-workflow.md — KB update workflow
 - docs/spec-divergences.md — spec vs implementation differences
-- docs/archive/ghl-original-spec.md — archived GHL spec
+- docs/calcom-api-contract.md — Cal.com API details
+- docs/twenty-api-contract.md — Twenty CRM API details
+- docs/retell-api-contract.md — Retell webhook contract
+- docs/tekten-klinik-kb.md — pilot clinic knowledge base
+- docs/archive/ — archived docs (GHL spec, step0, kb-workflow, v2-research)
+- scripts/archive/ — archived setup scripts (Retell agent creation, prompt update)
 
 ## When Compacting
 Preserve: multi-tenant safety rules, current implementation phase,
@@ -204,8 +207,10 @@ V1 Complete — deployed to Railway
 ## V1 Status
 - All 15 build steps completed
 - First real booking successful (Cal.com confirmed)
-- Retell simulation: 7 tests run, 1 passed, 6 failed (agent_id + booking fixes applied, retest needed)
-- **Known issues:**
-  - Cal.com booking title/time format needs refinement for agent readback
+- Backend refactored: data-only responses, no Turkish text in backend
+- Retell agent prompt changes done via Retell Dashboard (scripts archived)
+- **Active:**
+  - Retell node prompts need update — agent must handle status codes (no_availability, conflict, etc.) instead of pre-written Turkish messages
   - LLM Turkish quality not yet tested with live calls
   - Retell flow fine-tuning needed (transition conditions, edge cases)
+  - Netgsm telephony integration pending (SIP trunk ready, not yet connected)
